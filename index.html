@@ -108,6 +108,11 @@
     border-color: #2ea043;
     color: #4ade80;
   }
+  .tool-btn.sync-btn.syncing {
+    background: #332211;
+    border-color: #f59e0b;
+    color: #fcd34d;
+  }
 
   .tab-view { display: none; flex: 1; }
   .tab-view.active { display: flex; flex-direction: column; }
@@ -1890,7 +1895,7 @@
       <button type="button" class="reset-btn" id="closeSyncModalBtn">✕ 닫기</button>
     </div>
     <div class="sync-help-box">
-      Firebase Realtime Database 주소와 본인이 정한 비밀 암호를 입력하면 PC와 스마트폰이 실시간으로 자동 동기화됩니다. (비밀 암호는 현재 기기 브라우저에만 저장되며 외부에 공개되지 않습니다.)
+      Firebase Realtime Database 주소와 본인이 정한 비밀 암호를 입력하면 PC와 스마트폰이 실시간으로 자동 동기화됩니다. (미전송 로컬 기록이 있을 경우 덮어쓰지 않고 안전하게 병합 후 전송합니다.)
     </div>
     <div class="j-field">
       <label>Firebase Realtime Database URL</label>
@@ -1902,8 +1907,8 @@
     </div>
     <div id="syncStatusMsg" style="font-size:12px; color:#93c5fd; margin-top:4px;"></div>
     <div class="sync-btn-group">
-      <button type="button" class="sync-primary-btn" id="connectPullBtn">☁️ 연결하기 (클라우드 기록 불러오기)</button>
-      <button type="button" class="sync-upload-btn" id="connectPushBtn">⬆️ 현재 기기 기록을 클라우드로 덮어쓰기 (최초 1회 업로드)</button>
+      <button type="button" class="sync-primary-btn" id="connectPullBtn">☁️ 연결 및 즉시 동기화 (안전 병합)</button>
+      <button type="button" class="sync-upload-btn" id="connectPushBtn">⬆️ 현재 기기 기록을 클라우드로 강제 덮어쓰기</button>
       <button type="button" class="sync-disconnect-btn" id="disconnectSyncBtn" style="display:none;">동기화 연결 해제</button>
     </div>
   </div>
@@ -2053,89 +2058,306 @@
   }
 
   /* ============================================================================
-     0-B. Firebase 실시간 양방향 동기화 엔진
+     0-B. Firebase 실시간 양방향 동기화 엔진 (미전송 큐 보호 · 삭제 반영 · 자동 재연결)
   ============================================================================ */
   let rtdb = null;
   let syncUserRef = null;
   let isApplyingRemote = false;
+  let activeInFlightCount = 0;
+
+  const DEVICE_ID = localStorage.getItem("fb_device_id") || ("dev_" + Math.random().toString(36).slice(2, 10));
+  localStorage.setItem("fb_device_id", DEVICE_ID);
+
+  // 미전송 큐를 localStorage에 영구 보관하여 앱 종료/재실행 시에도 유실 방지
+  function loadSyncQueue() {
+    try {
+      const raw = JSON.parse(localStorage.getItem("fb_sync_queue") || "{}");
+      return {
+        pendingJournalIds: Array.isArray(raw.pendingJournalIds) ? raw.pendingJournalIds : [],
+        deletedJournalIds: Array.isArray(raw.deletedJournalIds) ? raw.deletedJournalIds : [],
+        dirtyLedgerMonths: Array.isArray(raw.dirtyLedgerMonths) ? raw.dirtyLedgerMonths : [],
+        dirtyRules: Boolean(raw.dirtyRules),
+        dirtyTags: Boolean(raw.dirtyTags),
+        dirtyKs: Boolean(raw.dirtyKs),
+        dirtySeed: Boolean(raw.dirtySeed)
+      };
+    } catch {
+      return {
+        pendingJournalIds: [],
+        deletedJournalIds: [],
+        dirtyLedgerMonths: [],
+        dirtyRules: false,
+        dirtyTags: false,
+        dirtyKs: false,
+        dirtySeed: false
+      };
+    }
+  }
+
+  let syncQueue = loadSyncQueue();
+  function saveSyncQueue() {
+    localStorage.setItem("fb_sync_queue", JSON.stringify(syncQueue));
+  }
+
+  function hasPendingItems() {
+    return syncQueue.pendingJournalIds.length > 0 ||
+           syncQueue.deletedJournalIds.length > 0 ||
+           syncQueue.dirtyLedgerMonths.length > 0 ||
+           syncQueue.dirtyRules ||
+           syncQueue.dirtyTags ||
+           syncQueue.dirtyKs ||
+           syncQueue.dirtySeed;
+  }
 
   function sanitizeFirebasePath(str) {
     return String(str || "").trim().replace(/[.#$\[\]\/]/g, "_");
   }
 
-  function updateSyncBadge(connected, labelText) {
+  function updateSyncBadge(state, customText) {
     const btn = document.getElementById("openSyncModalBtn");
     const disBtn = document.getElementById("disconnectSyncBtn");
-    if (connected) {
-      btn.classList.add("connected");
-      btn.textContent = labelText || "☁️ 실시간 동기화 중";
+    btn.classList.remove("connected", "syncing");
+
+    if (state === "DISCONNECTED") {
+      btn.textContent = customText || "☁️ 동기화 설정";
+      disBtn.style.display = "none";
+    } else if (state === "SYNCING") {
+      btn.classList.add("syncing");
+      btn.textContent = customText || "⏳ 클라우드 전송 중...";
       disBtn.style.display = "block";
     } else {
-      btn.classList.remove("connected");
-      btn.textContent = "☁️ 동기화 설정";
-      disBtn.style.display = "none";
+      btn.classList.add("connected");
+      btn.textContent = customText || `☁️ 동기화 완료 (${getLocalTimeStr()})`;
+      disBtn.style.display = "block";
     }
   }
 
-  function cloudPush(subPath, data) {
-    if (!syncUserRef || isApplyingRemote) return;
-    syncUserRef.child(subPath).set(data).catch(err => {
-      console.error("Cloud sync push error:", err);
-      updateSyncBadge(false);
-    });
+  function trackWrite(promise, onDone) {
+    activeInFlightCount++;
+    updateSyncBadge("SYNCING");
+    return promise
+      .then(() => {
+        if (onDone) onDone();
+        saveSyncQueue();
+      })
+      .catch(err => {
+        console.error("Cloud sync write error:", err);
+      })
+      .finally(() => {
+        activeInFlightCount = Math.max(0, activeInFlightCount - 1);
+        if (syncUserRef) {
+          if (activeInFlightCount > 0 || hasPendingItems()) {
+            updateSyncBadge("SYNCING", "⏳ 대기 중 (재전송 예정)");
+          } else {
+            updateSyncBadge("CONNECTED");
+          }
+        }
+      });
   }
 
-  function cloudRemove(subPath) {
-    if (!syncUserRef || isApplyingRemote) return;
-    syncUserRef.child(subPath).remove().catch(err => console.error(err));
+  function cloudPush(subPath, data) {
+    if (isApplyingRemote) return;
+    if (subPath === "calcSeed") syncQueue.dirtySeed = true;
+    else if (subPath === "preTradeRules") syncQueue.dirtyRules = true;
+    else if (subPath === "setupTags") syncQueue.dirtyTags = true;
+    else if (subPath === "killSwitchConfig") syncQueue.dirtyKs = true;
+    else if (subPath.startsWith("ledgerStore/")) {
+      const ym = subPath.split("/")[1];
+      if (ym && !syncQueue.dirtyLedgerMonths.includes(ym)) syncQueue.dirtyLedgerMonths.push(ym);
+    }
+    saveSyncQueue();
+
+    if (!syncUserRef) return;
+    trackWrite(
+      syncUserRef.update({
+        [subPath]: data,
+        initialized: true,
+        lastSender: DEVICE_ID,
+        updatedAt: Date.now()
+      }),
+      () => {
+        if (subPath === "calcSeed") syncQueue.dirtySeed = false;
+        else if (subPath === "preTradeRules") syncQueue.dirtyRules = false;
+        else if (subPath === "setupTags") syncQueue.dirtyTags = false;
+        else if (subPath === "killSwitchConfig") syncQueue.dirtyKs = false;
+        else if (subPath.startsWith("ledgerStore/")) {
+          const ym = subPath.split("/")[1];
+          syncQueue.dirtyLedgerMonths = syncQueue.dirtyLedgerMonths.filter(m => m !== ym);
+        }
+      }
+    );
+  }
+
+  function cloudPushJournal(entry) {
+    if (!syncQueue.pendingJournalIds.includes(entry.id)) {
+      syncQueue.pendingJournalIds.push(entry.id);
+    }
+    syncQueue.deletedJournalIds = syncQueue.deletedJournalIds.filter(id => id !== entry.id);
+    saveSyncQueue();
+
+    if (!syncUserRef) return;
+    trackWrite(
+      syncUserRef.update({
+        [`journals/${entry.id}`]: entry,
+        initialized: true,
+        lastSender: DEVICE_ID,
+        updatedAt: Date.now()
+      }),
+      () => {
+        syncQueue.pendingJournalIds = syncQueue.pendingJournalIds.filter(id => id !== entry.id);
+      }
+    );
+  }
+
+  function cloudRemoveJournal(id) {
+    syncQueue.pendingJournalIds = syncQueue.pendingJournalIds.filter(item => item !== id);
+    if (!syncQueue.deletedJournalIds.includes(id)) {
+      syncQueue.deletedJournalIds.push(id);
+    }
+    saveSyncQueue();
+
+    if (!syncUserRef) return;
+    trackWrite(
+      syncUserRef.update({
+        [`journals/${id}`]: null,
+        initialized: true,
+        lastSender: DEVICE_ID,
+        updatedAt: Date.now()
+      }),
+      () => {
+        syncQueue.deletedJournalIds = syncQueue.deletedJournalIds.filter(item => item !== id);
+      }
+    );
+  }
+
+  function flushPendingSync() {
+    if (!syncUserRef || !hasPendingItems()) return;
+    const updates = {
+      initialized: true,
+      lastSender: DEVICE_ID,
+      updatedAt: Date.now()
+    };
+
+    if (syncQueue.dirtySeed) updates.calcSeed = globalSeed;
+    if (syncQueue.dirtyRules) updates.preTradeRules = preTradeRules;
+    if (syncQueue.dirtyTags) updates.setupTags = setupTags;
+    if (syncQueue.dirtyKs) updates.killSwitchConfig = killSwitchConfig;
+
+    syncQueue.dirtyLedgerMonths.forEach(ym => {
+      updates[`ledgerStore/${ym}`] = ledgerStore[ym] || null;
+    });
+
+    syncQueue.pendingJournalIds.forEach(id => {
+      const found = allJournals.find(j => j.id === id);
+      if (found) updates[`journals/${id}`] = found;
+    });
+
+    syncQueue.deletedJournalIds.forEach(id => {
+      updates[`journals/${id}`] = null;
+    });
+
+    trackWrite(syncUserRef.update(updates), () => {
+      syncQueue = {
+        pendingJournalIds: [],
+        deletedJournalIds: [],
+        dirtyLedgerMonths: [],
+        dirtyRules: false,
+        dirtyTags: false,
+        dirtyKs: false,
+        dirtySeed: false
+      };
+    });
   }
 
   async function applyCloudSnapshot(data) {
     if (!data) return;
+    const isInitialized = Boolean(data.initialized || data.updatedAt || data.journals || data.ledgerStore || data.preTradeRules);
+    if (!isInitialized) return;
+
     isApplyingRemote = true;
     try {
-      if (data.calcSeed !== undefined && Number(data.calcSeed) > 0) {
+      // 1. 시드
+      if (!syncQueue.dirtySeed && data.calcSeed !== undefined && Number(data.calcSeed) > 0) {
         syncSeed(data.calcSeed, null, true);
       }
-      if (Array.isArray(data.preTradeRules)) {
-        preTradeRules = data.preTradeRules;
+
+      // 2. 진입 전 체크리스트 (마지막 항목 삭제 시 Firebase에서 undefined로 오므로 빈 배열 반영)
+      if (!syncQueue.dirtyRules) {
+        const remoteRules = Array.isArray(data.preTradeRules) ? data.preTradeRules : [];
+        preTradeRules = remoteRules;
         await dbPut("kv", preTradeRules, "preTradeRules");
         renderGatekeeper();
       }
-      if (Array.isArray(data.setupTags)) {
-        setupTags = data.setupTags;
+
+      // 3. 셋업 태그 (마지막 태그 삭제 시 빈 배열 반영)
+      if (!syncQueue.dirtyTags) {
+        const remoteTags = Array.isArray(data.setupTags) ? data.setupTags : [];
+        setupTags = remoteTags;
         await dbPut("kv", setupTags, "setupTags");
         renderSetupTagOptions();
       }
-      if (data.killSwitchConfig) {
+
+      // 4. 서킷브레이커 설정
+      if (!syncQueue.dirtyKs && data.killSwitchConfig) {
         killSwitchConfig = data.killSwitchConfig;
         ksMaxLossInput.value = killSwitchConfig.maxLoss ?? 60;
         ksMaxTradesInput.value = killSwitchConfig.maxTrades ?? 3;
         await dbPut("kv", killSwitchConfig, "killSwitchConfig");
         updateKillSwitch();
       }
-      if (data.ledgerStore) {
-        ledgerStore = data.ledgerStore;
-        await dbPut("kv", ledgerStore, "ledgerStore");
-        if (!ledgerBody.contains(document.activeElement)) {
-          renderLedger();
+
+      // 5. 월별 매매기록 장부 (작성 중인 월은 보호하고 나머지 월은 즉시 동기화)
+      const remoteLedger = data.ledgerStore || {};
+      const allMonths = new Set([...Object.keys(ledgerStore), ...Object.keys(remoteLedger)]);
+      allMonths.forEach(ym => {
+        if (syncQueue.dirtyLedgerMonths.includes(ym)) return;
+        if (remoteLedger[ym]) {
+          ledgerStore[ym] = remoteLedger[ym];
+        } else {
+          delete ledgerStore[ym];
         }
-      }
-      if (data.journals !== undefined) {
-        const jObj = data.journals || {};
-        allJournals = Object.values(jObj);
-        await dbClear("journals");
-        for (const j of allJournals) {
-          await dbPut("journals", j);
+      });
+      await dbPut("kv", ledgerStore, "ledgerStore");
+      updateLedgerDomSafely();
+
+      // 6. 건별 매매일지 (마지막 일지 삭제 시 undefined -> 빈 배열 반영 + 로컬 미전송 일지 보호 병합)
+      const remoteJournalsMap = data.journals || {};
+      const mergedMap = {};
+
+      Object.values(remoteJournalsMap).forEach(j => {
+        if (j && j.id && !syncQueue.deletedJournalIds.includes(j.id)) {
+          mergedMap[j.id] = j;
         }
-        updateKillSwitch();
-        renderJournals();
+      });
+
+      // 아직 클라우드로 전송되지 않은 로컬 일지 보존
+      syncQueue.pendingJournalIds.forEach(id => {
+        const localEntry = allJournals.find(j => j.id === id);
+        if (localEntry) {
+          mergedMap[id] = localEntry;
+        }
+      });
+
+      allJournals = Object.values(mergedMap).sort((a, b) => b.id - a.id);
+      await dbClear("journals");
+      for (const j of allJournals) {
+        await dbPut("journals", j);
       }
+      updateKillSwitch();
+      renderJournals();
+
       if (document.getElementById("view-analytics").classList.contains("active")) {
         renderAnalytics();
       }
     } finally {
       isApplyingRemote = false;
+    }
+
+    // 병합 후 아직 전송 안 된 로컬 변경분이 남아있다면 즉시 클라우드로 전송
+    if (hasPendingItems()) {
+      flushPendingSync();
+    } else if (syncUserRef && activeInFlightCount === 0) {
+      updateSyncBadge("CONNECTED");
     }
   }
 
@@ -2170,34 +2392,63 @@
 
   async function attachSyncListener(cleanUrl, safeKey, rawSecret, mode) {
     rtdb = firebase.database();
+    rtdb.goOnline();
     syncUserRef = rtdb.ref(`users/${safeKey}`);
     const statusMsg = document.getElementById("syncStatusMsg");
     statusMsg.textContent = "클라우드 서버에 연결 중...";
+    updateSyncBadge("SYNCING", "⏳ 동기화 연결 중...");
 
     try {
       if (mode === "PUSH") {
         const journalsMap = {};
         allJournals.forEach(j => { journalsMap[j.id] = j; });
         await syncUserRef.set({
+          initialized: true,
           calcSeed: globalSeed,
           preTradeRules,
           killSwitchConfig,
           setupTags,
           ledgerStore,
           journals: journalsMap,
+          lastSender: DEVICE_ID,
           updatedAt: Date.now()
         });
+        syncQueue = {
+          pendingJournalIds: [],
+          deletedJournalIds: [],
+          dirtyLedgerMonths: [],
+          dirtyRules: false,
+          dirtyTags: false,
+          dirtyKs: false,
+          dirtySeed: false
+        };
+        saveSyncQueue();
       } else {
         const snap = await syncUserRef.once("value");
         const val = snap.val();
         if (val) {
           await applyCloudSnapshot(val);
+        } else if (allJournals.length > 0 || Object.keys(ledgerStore).length > 0) {
+          // 클라우드가 완전히 비어 있는 최초 연결 시 로컬 데이터 자동 업로드
+          const journalsMap = {};
+          allJournals.forEach(j => { journalsMap[j.id] = j; });
+          await syncUserRef.set({
+            initialized: true,
+            calcSeed: globalSeed,
+            preTradeRules,
+            killSwitchConfig,
+            setupTags,
+            ledgerStore,
+            journals: journalsMap,
+            lastSender: DEVICE_ID,
+            updatedAt: Date.now()
+          });
         }
       }
 
       localStorage.setItem("fb_sync_url", cleanUrl);
       localStorage.setItem("fb_sync_secret", rawSecret);
-      updateSyncBadge(true, "☁️ 실시간 동기화 중");
+      updateSyncBadge("CONNECTED");
       statusMsg.textContent = "✅ 실시간 동기화가 활성화되었습니다!";
 
       syncUserRef.on("value", async snapshot => {
@@ -2209,13 +2460,34 @@
 
       setTimeout(() => {
         document.getElementById("syncModal").classList.remove("open");
-      }, 600);
+      }, 500);
     } catch (err) {
-      updateSyncBadge(false);
+      updateSyncBadge("DISCONNECTED", "⚠️ 동기화 오류");
       statusMsg.textContent = "❌ 연결 실패: Firebase 규칙(Rules) 또는 URL을 확인하세요.";
       alert("클라우드 동기화 권한 오류: Firebase 콘솔의 Realtime Database > 규칙(Rules) 설정을 확인해 주세요.\n(" + err.message + ")");
     }
   }
+
+  // 모바일 화면 잠금 해제 및 탭 복귀 시 즉시 재연결 + 미전송 데이터 전송 + 최신화
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && syncUserRef && rtdb) {
+      rtdb.goOnline();
+      flushPendingSync();
+      syncUserRef.once("value").then(snap => {
+        if (snap.val()) applyCloudSnapshot(snap.val());
+      }).catch(() => {});
+    }
+  });
+
+  window.addEventListener("online", () => {
+    if (syncUserRef && rtdb) {
+      rtdb.goOnline();
+      flushPendingSync();
+      syncUserRef.once("value").then(snap => {
+        if (snap.val()) applyCloudSnapshot(snap.val());
+      }).catch(() => {});
+    }
+  });
 
   document.getElementById("openSyncModalBtn").addEventListener("click", () => {
     document.getElementById("syncDbUrlInput").value = localStorage.getItem("fb_sync_url") || "";
@@ -2234,7 +2506,7 @@
     );
   });
   document.getElementById("connectPushBtn").addEventListener("click", () => {
-    if (!confirm("현재 기기의 체크리스트·장부·매매일지로 클라우드 데이터를 덮어쓰시겠습니까?")) return;
+    if (!confirm("현재 기기의 체크리스트·장부·매매일지로 클라우드 데이터를 강제 덮어쓰시겠습니까?")) return;
     startFirebaseSync(
       document.getElementById("syncDbUrlInput").value,
       document.getElementById("syncSecretInput").value,
@@ -2248,7 +2520,7 @@
     }
     localStorage.removeItem("fb_sync_url");
     localStorage.removeItem("fb_sync_secret");
-    updateSyncBadge(false);
+    updateSyncBadge("DISCONNECTED");
     document.getElementById("syncStatusMsg").textContent = "동기화 연결이 해제되었습니다.";
   });
 
@@ -2602,10 +2874,14 @@
     }
   }
 
+  let seedDebounceTimer = null;
   function syncSeed(newSeed, sourceEl, skipCloud = false) {
     globalSeed = parseFloat(newSeed) || 0;
     localStorage.setItem("calc_seed", globalSeed);
-    if (!skipCloud && globalSeed > 0) cloudPush("calcSeed", globalSeed);
+    if (!skipCloud && globalSeed > 0) {
+      clearTimeout(seedDebounceTimer);
+      seedDebounceTimer = setTimeout(() => cloudPush("calcSeed", globalSeed), 400);
+    }
     if (sourceEl !== globalSeedInput) globalSeedInput.value = newSeed;
     document.querySelectorAll(".seed-input").forEach(el => {
       if (el !== sourceEl) el.value = newSeed;
@@ -2675,12 +2951,13 @@
   applyLayoutMode();
 
   /* ============================================================================
-     3. 탭 2: 월별 매매기록 장부
+     3. 탭 2: 월별 매매기록 장부 (디바운스 & 커서 보호 실시간 동기화)
   ============================================================================ */
   const monthInput = document.getElementById("monthInput");
   const ledgerBody = document.getElementById("ledgerBody");
   const monthTargetPctInput = document.getElementById("monthTargetPct");
   let ledgerStore = {};
+  let ledgerDebounceTimers = {};
 
   monthInput.value = getLocalTodayStr().slice(0, 7);
 
@@ -2693,6 +2970,49 @@
   function getDaysInMonth(ym) {
     const [y, m] = ym.split("-").map(Number);
     return new Date(y, m, 0).getDate();
+  }
+
+  // 입력 중인 셀의 포커스를 유지하면서 다른 기기에서 온 장부 변경 사항을 즉시 반영
+  function updateLedgerDomSafely() {
+    const ym = monthInput.value || getLocalTodayStr().slice(0, 7);
+    const mData = ledgerStore[ym] || { targetPct: 20, days: {} };
+    if (document.activeElement !== monthTargetPctInput) {
+      monthTargetPctInput.value = mData.targetPct ?? 20;
+    }
+
+    const rows = ledgerBody.querySelectorAll("tr");
+    if (rows.length === 0) {
+      renderLedger();
+      return;
+    }
+
+    rows.forEach(tr => {
+      const dateStr = tr.dataset.date;
+      const row = (mData.days && mData.days[dateStr]) || { start: "", end: "", io: "", safe: "NONE", memo: "" };
+      const cleanStart = row.start !== "" && !isNaN(row.start) ? Math.round(Number(row.start)) : "";
+      const cleanEnd = row.end !== "" && !isNaN(row.end) ? Math.round(Number(row.end)) : "";
+      const ioNum = Math.round(Number(row.io) || 0);
+
+      const sInp = tr.querySelector(".l-start");
+      const eInp = tr.querySelector(".l-end");
+      const mInp = tr.querySelector(".l-memo");
+      const safeBtn = tr.querySelector(".safe-toggle");
+      const ioBtn = tr.querySelector(".io-badge-btn");
+
+      if (document.activeElement !== sInp) sInp.value = cleanStart;
+      if (document.activeElement !== eInp) eInp.value = cleanEnd;
+      if (document.activeElement !== mInp) mInp.value = row.memo || "";
+
+      tr.dataset.io = ioNum || "";
+      ioBtn.textContent = ioNum !== 0 ? `입출 ${ioNum > 0 ? "+" : ""}${ioNum.toLocaleString()}` : "+입출금";
+      ioBtn.className = ioNum !== 0 ? "io-badge-btn has-io" : "io-badge-btn";
+
+      safeBtn.dataset.state = row.safe || "NONE";
+      safeBtn.textContent = row.safe === "OK" ? "무사고" : (row.safe === "FAIL" ? "위반" : "-");
+      safeBtn.className = "safe-toggle " + (row.safe === "OK" ? "ok" : (row.safe === "FAIL" ? "fail" : ""));
+    });
+
+    recalcLedger(true);
   }
 
   function renderLedger() {
@@ -2746,7 +3066,9 @@
 
   function recalcLedger(skipCloud = false) {
     const ym = monthInput.value || getLocalTodayStr().slice(0, 7);
+    if (!ledgerStore[ym]) ledgerStore[ym] = { targetPct: 20, days: {} };
     const mData = ledgerStore[ym];
+    if (!mData.days) mData.days = {};
     const targetPct = parseFloat(monthTargetPctInput.value) || 0;
     mData.targetPct = targetPct;
 
@@ -2840,7 +3162,16 @@
     document.getElementById("footGoalDiff").textContent = `목표 ${targetPct}% 대비 ${diff >= 0 ? "+" : ""}${diff.toFixed(2)}%`;
 
     dbPut("kv", ledgerStore, "ledgerStore");
-    if (!skipCloud) cloudPush(`ledgerStore/${ym}`, ledgerStore[ym]);
+    if (!skipCloud) {
+      if (!syncQueue.dirtyLedgerMonths.includes(ym)) {
+        syncQueue.dirtyLedgerMonths.push(ym);
+        saveSyncQueue();
+      }
+      clearTimeout(ledgerDebounceTimers[ym]);
+      ledgerDebounceTimers[ym] = setTimeout(() => {
+        cloudPush(`ledgerStore/${ym}`, ledgerStore[ym]);
+      }, 400);
+    }
   }
 
   function bindLedgerEvents() {
@@ -2960,16 +3291,15 @@
     }
   }
 
-  ksMaxLossInput.addEventListener("input", () => {
+  let ksDebounceTimer = null;
+  function handleKsChange() {
     updateKillSwitch();
     dbPut("kv", killSwitchConfig, "killSwitchConfig");
-    cloudPush("killSwitchConfig", killSwitchConfig);
-  });
-  ksMaxTradesInput.addEventListener("input", () => {
-    updateKillSwitch();
-    dbPut("kv", killSwitchConfig, "killSwitchConfig");
-    cloudPush("killSwitchConfig", killSwitchConfig);
-  });
+    clearTimeout(ksDebounceTimer);
+    ksDebounceTimer = setTimeout(() => cloudPush("killSwitchConfig", killSwitchConfig), 400);
+  }
+  ksMaxLossInput.addEventListener("input", handleKsChange);
+  ksMaxTradesInput.addEventListener("input", handleKsChange);
 
   const jDateInput = document.getElementById("jDate");
   const jTimeInput = document.getElementById("jTime");
@@ -3124,14 +3454,14 @@
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement("canvas");
-          const MAX_W = 1100;
+          const MAX_W = 900;
           let w = img.width, h = img.height;
           if (w > MAX_W) { h = Math.round(h * (MAX_W / w)); w = MAX_W; }
           canvas.width = w;
           canvas.height = h;
           const ctx = canvas.getContext("2d");
           ctx.drawImage(img, 0, 0, w, h);
-          resolve(canvas.toDataURL("image/jpeg", 0.72));
+          resolve(canvas.toDataURL("image/jpeg", 0.65));
         };
         img.src = e.target.result;
       };
@@ -3202,7 +3532,7 @@
     });
 
     const entry = {
-      id: Date.now(),
+      id: Date.now() + Math.floor(Math.random() * 100),
       date: jDateInput.value || getLocalTodayStr(),
       time: jTimeInput.value || getLocalTimeStr(),
       sym: document.getElementById("jSym").value,
@@ -3219,7 +3549,7 @@
 
     await dbPut("journals", entry);
     allJournals.unshift(entry);
-    cloudPush(`journals/${entry.id}`, entry);
+    cloudPushJournal(entry);
 
     jDateInput.value = getLocalTodayStr();
     jDateInput.dataset.auto = "";
@@ -3364,7 +3694,7 @@
         const id = Number(btn.dataset.id);
         await dbDelete("journals", id);
         allJournals = allJournals.filter(item => item.id !== id);
-        cloudRemove(`journals/${id}`);
+        cloudRemoveJournal(id);
         updateKillSwitch();
         renderJournals();
       });
@@ -3836,14 +4166,26 @@
           const journalsMap = {};
           allJournals.forEach(j => { journalsMap[j.id] = j; });
           await syncUserRef.set({
+            initialized: true,
             calcSeed: globalSeed,
             preTradeRules,
             killSwitchConfig,
             setupTags,
             ledgerStore,
             journals: journalsMap,
+            lastSender: DEVICE_ID,
             updatedAt: Date.now()
           });
+          syncQueue = {
+            pendingJournalIds: [],
+            deletedJournalIds: [],
+            dirtyLedgerMonths: [],
+            dirtyRules: false,
+            dirtyTags: false,
+            dirtyKs: false,
+            dirtySeed: false
+          };
+          saveSyncQueue();
         }
 
         renderGatekeeper();
