@@ -1,0 +1,3558 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>트레이딩 올인원 대시보드 (계산기 · 매매기록 · 매매일지 · 성과분석)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #121417;
+    color: #e9ecef;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ================= 상단 공통 내비게이션 바 ================= */
+  .global-header {
+    background: #16191e;
+    border-bottom: 1px solid #2c323b;
+    padding: 0 16px;
+    height: 46px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-tabs {
+    display: flex;
+    gap: 6px;
+    height: 100%;
+    align-items: center;
+  }
+  .nav-tab {
+    background: transparent;
+    border: 1px solid transparent;
+    color: #8b949e;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .nav-tab:hover { color: #e9ecef; background: #1f242c; }
+  .nav-tab.active {
+    background: #1d3557;
+    border-color: #3b82f6;
+    color: #ffffff;
+  }
+  .global-tools {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .tool-btn {
+    background: #21262d;
+    border: 1px solid #363d47;
+    color: #c9d1d9;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .tool-btn:hover { background: #30363d; color: #ffffff; }
+  .tool-btn.ai-btn {
+    background: #143626;
+    border-color: #2ea043;
+    color: #4ade80;
+  }
+  .tool-btn.ai-btn:hover { background: #1b4732; }
+
+  .tab-view { display: none; flex: 1; }
+  .tab-view.active { display: flex; flex-direction: column; }
+
+  /* ================= 기능 1: 진입 전 강제 체크리스트 (Pre-Trade Gatekeeper) ================= */
+  .gatekeeper-card {
+    width: 100%;
+    max-width: 840px;
+    background: #1b1f24;
+    border: 1px solid #2c323b;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .gatekeeper-card.ready {
+    border-color: #2ea043;
+    box-shadow: 0 0 14px rgba(46, 160, 67, 0.18);
+  }
+  .gk-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .gk-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .gk-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: #e9ecef;
+  }
+  .gk-status {
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: #2b2118;
+    border: 1px solid #d97706;
+    color: #fbbf24;
+  }
+  .gk-status.ready {
+    background: #143626;
+    border-color: #2ea043;
+    color: #4ade80;
+  }
+  .gk-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .gk-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .gk-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: #14171c;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 7px 11px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #adb5bd;
+    cursor: pointer;
+    user-select: none;
+    transition: 0.15s;
+  }
+  .gk-item:hover { border-color: #4b5563; color: #f8f9fa; }
+  .gk-item.checked {
+    background: #132d21;
+    border-color: #2ea043;
+    color: #dcfce7;
+  }
+  .gk-box {
+    width: 15px;
+    height: 15px;
+    border-radius: 4px;
+    border: 1.5px solid #6e7681;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 900;
+    color: transparent;
+    flex-shrink: 0;
+  }
+  .gk-item.checked .gk-box {
+    background: #2ea043;
+    border-color: #4ade80;
+    color: #0d1014;
+  }
+  .gk-del-rule {
+    background: none;
+    border: none;
+    color: #f87171;
+    font-size: 11px;
+    font-weight: 900;
+    cursor: pointer;
+    margin-left: 4px;
+    display: none;
+  }
+  .gatekeeper-card.editing .gk-del-rule { display: inline; }
+  .gk-add-bar {
+    display: none;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .gatekeeper-card.editing .gk-add-bar { display: flex; }
+  .gk-add-bar input { font-size: 12px; padding: 5px 8px; }
+
+  /* 4분할 모드용 게이트키퍼 팝오버 */
+  .quad-gk-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .quad-gk-popover {
+    display: none;
+    position: absolute;
+    top: 34px;
+    left: 0;
+    width: 520px;
+    max-width: 90vw;
+    background: #1b1f24;
+    border: 1px solid #3b82f6;
+    border-radius: 10px;
+    padding: 12px;
+    z-index: 200;
+    box-shadow: 0 10px 28px rgba(0,0,0,0.7);
+  }
+  .quad-gk-popover.open { display: block; }
+
+  /* ================= 탭 1: 포지션 랏수 & 평단가 계산기 ================= */
+  #view-calc.single-mode {
+    justify-content: center;
+    align-items: center;
+    padding: 16px;
+  }
+  #view-calc.single-mode .quad-grid {
+    display: block;
+    width: 100%;
+    max-width: 840px;
+  }
+  #view-calc.single-mode .quad-cell { display: none; }
+  #view-calc.single-mode .quad-cell.active-single { display: block; }
+  #view-calc.single-mode .quad-toolbar { display: none; }
+
+  #view-calc.quad-mode {
+    height: calc(100vh - 46px);
+    overflow: hidden;
+  }
+  #view-calc.quad-mode #gatekeeperSingleWrap { display: none; }
+  .quad-top-bar {
+    display: none;
+    justify-content: space-between;
+    align-items: center;
+    background: #14171c;
+    border-bottom: 1px solid #2c323b;
+    padding: 6px 16px;
+    height: 38px;
+    flex-shrink: 0;
+  }
+  #view-calc.quad-mode .quad-top-bar { display: flex; }
+  .quad-seed-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #adb5bd;
+  }
+  .quad-seed-wrap input {
+    width: 110px;
+    font-size: 14px;
+    padding: 3px 8px;
+    border-radius: 6px;
+  }
+  .quad-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    flex: 1;
+    height: calc(100vh - 84px);
+    width: 100vw;
+  }
+  #view-calc.quad-mode .quad-cell {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 10px;
+    overflow: auto;
+  }
+  #view-calc.quad-mode .quad-cell[data-sym="XAU"]   { border-right: 1px solid #30363d; border-bottom: 1px solid #30363d; }
+  #view-calc.quad-mode .quad-cell[data-sym="US100"] { border-bottom: 1px solid #30363d; }
+  #view-calc.quad-mode .quad-cell[data-sym="BTC"]   { border-right: 1px solid #30363d; }
+
+  .quad-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .quad-badge { font-size: 12px; font-weight: 800; color: #60a5fa; }
+  .quad-actions { display: flex; gap: 6px; }
+
+  #view-calc.quad-mode .calc-layout { gap: 8px; flex-wrap: nowrap; max-width: 100%; align-items: stretch; }
+  #view-calc.quad-mode .container { flex: 1 1 54%; max-width: none; padding: 10px 12px; border-radius: 10px; }
+  #view-calc.quad-mode .side-panel { flex: 1 1 46%; max-width: none; padding: 10px 12px; border-radius: 10px; }
+  #view-calc.quad-mode .single-only-seed,
+  #view-calc.quad-mode .symbols,
+  #view-calc.quad-mode .mode-switch-single { display: none !important; }
+  #view-calc.quad-mode .row { margin-bottom: 8px; }
+  #view-calc.quad-mode label { font-size: 11px; margin-bottom: 3px; }
+  #view-calc.quad-mode .container input[type="number"] { font-size: 15px; padding: 6px 8px; }
+  #view-calc.quad-mode .info-bar { padding: 6px 8px; margin-bottom: 8px; font-size: 11px; }
+  #view-calc.quad-mode .cards { gap: 5px; }
+  #view-calc.quad-mode .card { padding: 6px 8px; border-radius: 7px; }
+  #view-calc.quad-mode .risk-tag { min-width: 96px; }
+  #view-calc.quad-mode .risk-pct { font-size: 12px; }
+  #view-calc.quad-mode .risk-usd { font-size: 10px; }
+  #view-calc.quad-mode .custom-pct-input { width: 42px !important; font-size: 12px !important; padding: 2px 3px !important; }
+  #view-calc.quad-mode .lot-val { font-size: 16px; }
+  #view-calc.quad-mode .mult-val { font-size: 10px; }
+  #view-calc.quad-mode .sub-out { font-size: 10px; line-height: 1.3; min-width: 66px; }
+  #view-calc.quad-mode .side-header { margin-bottom: 6px; }
+  #view-calc.quad-mode .side-title { font-size: 11px; }
+  #view-calc.quad-mode .sl-box { padding: 5px 8px; margin-bottom: 6px; }
+  #view-calc.quad-mode .sl-box span { font-size: 11px; }
+  #view-calc.quad-mode .sl-box input { width: 95px; font-size: 12px; padding: 3px 6px; }
+  #view-calc.quad-mode .avg-table { margin-bottom: 6px; font-size: 10px; }
+  #view-calc.quad-mode .avg-table th { padding: 3px 2px; }
+  #view-calc.quad-mode .avg-table td { padding: 2px 1px; }
+  #view-calc.quad-mode .avg-table .p-in { width: 64px; font-size: 11px; padding: 3px; }
+  #view-calc.quad-mode .avg-table .l-in { width: 44px; font-size: 11px; padding: 3px; }
+  #view-calc.quad-mode .avg-summary { padding: 7px 9px; gap: 4px; border-radius: 7px; }
+  #view-calc.quad-mode .sum-row { font-size: 11px; }
+  #view-calc.quad-mode .sum-row strong { font-size: 12px; }
+  #view-calc.quad-mode .sum-row.loss-row { padding-top: 4px; }
+  #view-calc.quad-mode .sum-row.loss-row strong { font-size: 13px; }
+
+  .calc-layout {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    width: 100%;
+    max-width: 840px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .container {
+    flex: 1 1 430px;
+    max-width: 450px;
+    background: #1b1f24;
+    border: 1px solid #2c323b;
+    border-radius: 14px;
+    padding: 20px;
+  }
+  .side-panel {
+    flex: 1 1 330px;
+    max-width: 360px;
+    background: #1b1f24;
+    border: 1px solid #2c323b;
+    border-radius: 14px;
+    padding: 16px;
+  }
+  .top-action-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .mode-btn {
+    background: #1d3557;
+    border: 1px solid #3b82f6;
+    color: #93c5fd;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .mode-btn:hover { background: #254673; color: #ffffff; }
+  .reset-btn {
+    background: #262b33;
+    border: 1px solid #363d47;
+    color: #adb5bd;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .reset-btn:hover { background: #30363d; color: #ffffff; }
+  .row { display: flex; gap: 10px; margin-bottom: 14px; }
+  .field { flex: 1; }
+  label { display: block; font-size: 12px; color: #8b949e; margin-bottom: 6px; font-weight: 600; }
+  input[type="number"], input[type="text"], input[type="date"], input[type="time"], input[type="month"], select, textarea {
+    width: 100%;
+    background: #0d1014;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 14px;
+    padding: 8px 10px;
+    outline: none;
+    font-family: inherit;
+    color-scheme: dark;
+  }
+  .container input[type="number"] { font-size: 18px; font-weight: 700; padding: 10px 12px; }
+  input:focus, select:focus, textarea:focus { border-color: #3b82f6; }
+
+  .symbols { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+  .sym-btn {
+    background: #0d1014;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    color: #adb5bd;
+    padding: 10px 4px;
+    cursor: pointer;
+    text-align: center;
+  }
+  .sym-btn.active { background: #1d3557; border-color: #3b82f6; color: #ffffff; }
+  .sym-name { font-size: 14px; font-weight: 800; display: block; }
+  .sym-unit { font-size: 11px; color: #8b949e; margin-top: 2px; display: block; }
+  .sym-btn.active .sym-unit { color: #93c5fd; }
+
+  .info-bar {
+    display: flex;
+    justify-content: space-between;
+    background: #14171c;
+    border: 1px solid #262b33;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 16px;
+    font-size: 13px;
+  }
+  .info-bar strong { color: #f8f9fa; font-weight: 700; }
+
+  .cards { display: flex; flex-direction: column; gap: 10px; }
+  .card {
+    background: #14171c;
+    border: 1px solid #2b313a;
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .card.custom { border-style: dashed; }
+  .risk-tag { display: flex; align-items: center; gap: 5px; min-width: 125px; }
+  .risk-pct { font-size: 15px; font-weight: 800; color: #f87171; }
+  .risk-usd { font-size: 12px; color: #8b949e; }
+  .custom-pct-input {
+    width: 58px !important;
+    font-size: 15px !important;
+    padding: 4px 6px !important;
+    text-align: center;
+    color: #f87171 !important;
+  }
+  .main-out { text-align: center; }
+  .lot-val { font-size: 24px; font-weight: 900; color: #4ade80; letter-spacing: -0.5px; }
+  .mult-val { font-size: 12px; font-weight: 700; color: #93c5fd; margin-left: 4px; }
+  .sub-out { text-align: right; font-size: 11px; color: #6e7681; line-height: 1.5; min-width: 82px; }
+  .sub-out b { color: #9ca3af; font-weight: 600; }
+
+  .side-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .side-title { font-size: 13px; font-weight: 700; color: #adb5bd; }
+  .sl-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #14171c;
+    border: 1px solid #262b33;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 12px;
+    gap: 8px;
+  }
+  .sl-box span { font-size: 12px; font-weight: 600; color: #8b949e; white-space: nowrap; }
+  .sl-box input { width: 130px; font-size: 13px; padding: 5px 8px; text-align: right; }
+  .avg-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 11px; }
+  .avg-table th { color: #8b949e; font-weight: 600; padding: 6px 3px; border-bottom: 1px solid #2c323b; text-align: center; }
+  .avg-table td { padding: 4px 2px; border-bottom: 1px solid #22262e; text-align: center; color: #ced4da; }
+  .avg-table td.step-col { color: #8b949e; font-weight: 600; width: 34px; }
+  .avg-table input { width: 100%; font-size: 12px; font-weight: 600; padding: 5px 4px; border-radius: 5px; text-align: right; }
+  .avg-table .p-in { width: 82px; }
+  .avg-table .l-in { width: 56px; }
+  .avg-out-cell { font-weight: 600; color: #9ca3af; font-size: 11px; }
+  .avg-summary {
+    background: #14171c;
+    border: 1px solid #2b313a;
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .sum-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+  .sum-row span { color: #8b949e; }
+  .sum-row strong { color: #f8f9fa; font-size: 14px; font-weight: 800; }
+  .sum-row.loss-row { padding-top: 8px; border-top: 1px dashed #2c323b; }
+  .sum-row.loss-row strong { color: #f87171; font-size: 15px; }
+
+  /* ================= 탭 2: 월별 매매기록 장부 ================= */
+  .ledger-full-wrap {
+    width: 100%;
+    padding: 16px 16px 40px;
+  }
+  .ledger-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #1b1f24;
+    border: 1px solid #2c323b;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .month-selector { display: flex; align-items: center; gap: 8px; }
+  .month-selector input[type="month"] {
+    width: 165px;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+  .month-nav-btn {
+    background: #262b33;
+    border: 1px solid #363d47;
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 700;
+  }
+  .month-nav-btn:hover { background: #30363d; }
+  .ledger-kpis { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .kpi-chip {
+    background: #14171c;
+    border: 1px solid #2b313a;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #8b949e;
+  }
+  .kpi-chip strong { color: #fff; font-size: 14px; margin-left: 4px; }
+  .kpi-chip input {
+    width: 60px;
+    padding: 2px 6px;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: right;
+    margin-left: 4px;
+    color: #60a5fa;
+  }
+
+  .ledger-table-wrap {
+    width: 100%;
+    background: #1b1f24;
+    border: 1px solid #2c323b;
+    border-radius: 12px;
+    overflow-x: auto;
+  }
+  .ledger-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .ledger-table th {
+    background: #16191e;
+    color: #8b949e;
+    font-weight: 700;
+    padding: 10px 8px;
+    border-bottom: 1px solid #2c323b;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .ledger-table td {
+    padding: 5px 6px;
+    border-bottom: 1px solid #22262e;
+    text-align: center;
+  }
+  .ledger-table tr:hover { background: #1f242b; }
+
+  .ledger-table td.date-col {
+    font-weight: 600;
+    color: #adb5bd;
+    width: 185px;
+    white-space: nowrap;
+    text-align: left;
+    padding-left: 12px;
+  }
+  .date-cell-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .io-badge-btn {
+    background: #14171c;
+    border: 1px dashed #363d47;
+    color: #6e7681;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .io-badge-btn:hover { border-color: #60a5fa; color: #93c5fd; }
+  .io-badge-btn.has-io {
+    background: #1d3557;
+    border: 1px solid #3b82f6;
+    color: #93c5fd;
+  }
+
+  .ledger-table td.num-col { width: 112px; }
+  .ledger-table td.num-col input { width: 102px; padding: 5px 8px; font-size: 13px; text-align: right; border-radius: 6px; }
+  .ledger-table td.pnl-col { font-weight: 800; width: 105px; text-align: right; padding-right: 12px; white-space: nowrap; }
+  .ledger-table td.pct-col { font-weight: 800; width: 85px; white-space: nowrap; }
+  .ledger-table td.safe-col { width: 74px; white-space: nowrap; }
+  .safe-toggle {
+    padding: 4px 10px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    border: 1px solid #30363d;
+    background: #0d1014;
+    color: #6e7681;
+  }
+  .safe-toggle.ok { background: #143626; border-color: #2ea043; color: #4ade80; }
+  .safe-toggle.fail { background: #3b181a; border-color: #f85149; color: #f87171; }
+
+  .ledger-table td.memo-col {
+    width: auto;
+    min-width: 340px;
+    text-align: left;
+  }
+  .ledger-table td.memo-col input {
+    width: 100%;
+    padding: 6px 10px;
+    font-size: 13px;
+    border-radius: 6px;
+    overflow-x: auto;
+  }
+
+  .ledger-table tfoot td {
+    background: #14171c;
+    font-weight: 800;
+    padding: 11px 8px;
+    border-top: 2px solid #30363d;
+    font-size: 14px;
+    vertical-align: middle;
+  }
+  .safe-summary-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 11px;
+    line-height: 1.3;
+    align-items: center;
+  }
+  .pos { color: #4ade80 !important; }
+  .neg { color: #f87171 !important; }
+
+  /* ================= 탭 3: 건별 매매일지 + 기능 2 (서킷브레이커) ================= */
+  .page-wrap {
+    max-width: 1260px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 20px 16px 40px;
+  }
+
+  .killswitch-wrap {
+    background: #1b1f24;
+    border: 1px solid #2c323b;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .ks-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .ks-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: #e9ecef;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ks-input-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #8b949e;
+    background: #14171c;
+    border: 1px solid #2b313a;
+    padding: 4px 10px;
+    border-radius: 8px;
+  }
+  .ks-input-group input {
+    width: 64px;
+    padding: 3px 6px;
+    font-size: 13px;
+    font-weight: 800;
+    text-align: right;
+    color: #f87171;
+  }
+  .ks-gauges {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    flex: 1;
+    justify-content: flex-end;
+  }
+  .ks-gauge-box {
+    min-width: 190px;
+  }
+  .ks-gauge-top {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: #adb5bd;
+  }
+  .ks-bar-bg {
+    width: 100%;
+    height: 7px;
+    background: #0d1014;
+    border-radius: 999px;
+    overflow: hidden;
+    border: 1px solid #2b313a;
+  }
+  .ks-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: #4ade80;
+    transition: width 0.25s, background 0.25s;
+  }
+  .ks-bar-fill.warn { background: #f59e0b; }
+  .ks-bar-fill.danger { background: #ef4444; }
+
+  @keyframes pulseDanger {
+    0%   { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.65); }
+    70%  { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+  }
+  .circuit-banner {
+    display: none;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .circuit-banner.warn {
+    display: flex;
+    background: linear-gradient(90deg, #422006 0%, #713f12 100%);
+    border: 2px solid #f59e0b;
+    color: #fef3c7;
+  }
+  .circuit-banner.triggered {
+    display: flex;
+    background: linear-gradient(90deg, #450a0a 0%, #991b1b 50%, #450a0a 100%);
+    border: 2px solid #ef4444;
+    color: #ffffff;
+    animation: pulseDanger 1.8s infinite;
+  }
+  .cb-main {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .cb-icon { font-size: 28px; flex-shrink: 0; }
+  .cb-text h3 {
+    font-size: 16px;
+    font-weight: 900;
+    letter-spacing: -0.3px;
+    margin-bottom: 3px;
+  }
+  .cb-text p {
+    font-size: 13px;
+    opacity: 0.92;
+    font-weight: 600;
+  }
+
+  .journal-grid {
+    display: grid;
+    grid-template-columns: 410px 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .journal-grid { grid-template-columns: 1fr; }
+  }
+  .j-form-card {
+    background: #1b1f24;
+    border: 1px solid #2c323b;
+    border-radius: 14px;
+    padding: 18px;
+    position: sticky;
+    top: 62px;
+  }
+  .j-form-title {
+    font-size: 15px;
+    font-weight: 800;
+    margin-bottom: 14px;
+    color: #f8f9fa;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .j-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .j-row-3 { display: grid; grid-template-columns: 1.15fr 0.9fr 0.95fr; gap: 6px; margin-bottom: 10px; }
+  .j-field { margin-bottom: 10px; }
+  .j-field textarea { resize: vertical; min-height: 52px; font-size: 13px; line-height: 1.4; }
+
+  .setup-select-row {
+    display: flex;
+    gap: 4px;
+  }
+  .tag-manage-btn {
+    background: #262b33;
+    border: 1px solid #363d47;
+    color: #adb5bd;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 0 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .tag-manage-btn:hover { background: #30363d; color: #fff; }
+  .new-tag-box {
+    display: none;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .new-tag-box.open { display: flex; }
+  .new-tag-box input { font-size: 12px; padding: 6px 8px; }
+  .small-add-btn {
+    background: #1d3557;
+    border: 1px solid #3b82f6;
+    color: #93c5fd;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 0 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .small-add-btn:hover { background: #254673; color: #fff; }
+  .tag-manage-panel {
+    display: none;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 6px;
+    padding: 7px;
+    background: #14171c;
+    border: 1px solid #2b313a;
+    border-radius: 8px;
+  }
+  .tag-manage-panel.open { display: flex; }
+  .tag-chip-del {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #2b213a;
+    color: #d8b4fe;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 7px;
+    border-radius: 5px;
+  }
+  .tag-chip-del button {
+    background: none;
+    border: none;
+    color: #f87171;
+    font-weight: 900;
+    cursor: pointer;
+    font-size: 11px;
+  }
+
+  .review-builder {
+    background: #14171c;
+    border: 1px solid #2b313a;
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+  .review-builder-head select {
+    font-size: 12px;
+    padding: 6px 8px;
+    color: #93c5fd;
+    font-weight: 700;
+  }
+  .review-blocks {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .review-blocks:empty { display: none; }
+  .rev-block {
+    background: #0d1014;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 8px;
+  }
+  .rev-block.good { border-left: 3px solid #4ade80; }
+  .rev-block.mistake { border-left: 3px solid #f87171; }
+  .rev-block.rule { border-left: 3px solid #60a5fa; }
+  .rev-block-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+    font-size: 11px;
+    font-weight: 800;
+  }
+  .rev-block.good .rev-block-top { color: #4ade80; }
+  .rev-block.mistake .rev-block-top { color: #f87171; }
+  .rev-block.rule .rev-block-top { color: #60a5fa; }
+  .rev-remove-btn {
+    background: transparent;
+    border: none;
+    color: #6e7681;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 0 4px;
+  }
+  .rev-remove-btn:hover { color: #f87171; }
+  .rev-block input {
+    font-size: 12px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: #14171c;
+  }
+
+  .img-drop-zone {
+    border: 1px dashed #3b82f6;
+    background: #0d1014;
+    border-radius: 8px;
+    padding: 11px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 12px;
+    color: #93c5fd;
+    transition: 0.15s;
+  }
+  .img-drop-zone:hover { background: #141c29; }
+  .img-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .img-preview-grid:empty { display: none; }
+  .img-thumb-item {
+    position: relative;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #30363d;
+    aspect-ratio: 16 / 10;
+  }
+  .img-thumb-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .img-thumb-idx {
+    position: absolute;
+    bottom: 3px;
+    left: 4px;
+    background: rgba(0,0,0,0.75);
+    color: #e9ecef;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  .img-thumb-del {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    background: rgba(0,0,0,0.8);
+    color: #f87171;
+    border: 1px solid #f87171;
+    border-radius: 4px;
+    padding: 0 5px;
+    font-size: 10px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .save-j-btn {
+    width: 100%;
+    background: #238636;
+    border: 1px solid #2ea043;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 800;
+    padding: 11px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 6px;
+  }
+  .save-j-btn:hover { background: #2ea043; }
+
+  .j-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .j-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+  .j-filters select { width: auto; font-size: 12px; padding: 6px 8px; }
+
+  .j-cards { display: flex; flex-direction: column; gap: 12px; }
+  .j-item {
+    background: #1b1f24;
+    border: 1px solid #2c323b;
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .j-item-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #262b33;
+    padding-bottom: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .j-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .badge {
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 5px;
+    background: #262b33;
+    color: #e9ecef;
+  }
+  .badge.buy { background: #143626; color: #4ade80; }
+  .badge.sell { background: #3b181a; color: #f87171; }
+  .badge.rule-ok { background: #1d3557; color: #93c5fd; }
+  .badge.rule-no { background: #4a1d1f; color: #fca5a5; }
+  .badge.setup { background: #2b213a; color: #d8b4fe; }
+  .badge.time-tag { background: #14171c; border: 1px solid #30363d; color: #9ca3af; }
+
+  .j-item-body {
+    display: grid;
+    grid-template-columns: 1fr 230px;
+    gap: 14px;
+  }
+  .j-item-body.no-img { grid-template-columns: 1fr; }
+  @media (max-width: 640px) {
+    .j-item-body { grid-template-columns: 1fr; }
+  }
+  .j-notes { display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.5; }
+  .j-notes div strong { color: #8b949e; font-size: 12px; margin-right: 6px; }
+  .j-rev-tags {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 4px;
+    padding-top: 6px;
+    border-top: 1px dashed #2b313a;
+  }
+  .rev-pill {
+    font-size: 12px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    background: #14171c;
+    line-height: 1.4;
+  }
+  .rev-pill.good { border-left: 3px solid #4ade80; color: #dcfce7; }
+  .rev-pill.good b { color: #4ade80; margin-right: 6px; }
+  .rev-pill.mistake { border-left: 3px solid #f87171; color: #fee2e2; }
+  .rev-pill.mistake b { color: #f87171; margin-right: 6px; }
+  .rev-pill.rule { border-left: 3px solid #60a5fa; color: #dbeafe; }
+  .rev-pill.rule b { color: #60a5fa; margin-right: 6px; }
+
+  .j-chart-box {
+    position: relative;
+    width: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #30363d;
+    background: #0d1014;
+  }
+  .j-chart-thumb {
+    width: 100%;
+    height: 165px;
+    object-fit: cover;
+    display: block;
+    cursor: zoom-in;
+  }
+  .more-imgs-btn {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: rgba(13, 16, 20, 0.88);
+    border: 1px solid #3b82f6;
+    color: #93c5fd;
+    font-size: 12px;
+    font-weight: 800;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  }
+  .more-imgs-btn:hover { background: #1d3557; color: #fff; }
+
+  /* ================= 탭 4: 성과·통계 분석 (기능 3, 4, 5) ================= */
+  .analytics-section {
+    background: #1b1f24;
+    border: 1px solid #2c323b;
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-bottom: 18px;
+  }
+  .an-sec-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .an-sec-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: #f8f9fa;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .an-sec-sub {
+    font-size: 12px;
+    color: #8b949e;
+    margin-top: 2px;
+  }
+  .dst-pill {
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 9px;
+    border-radius: 999px;
+  }
+  .dst-pill.winter {
+    background: #162942;
+    border: 1px solid #3b82f6;
+    color: #93c5fd;
+  }
+  .dst-pill.summer {
+    background: #332211;
+    border: 1px solid #f59e0b;
+    color: #fcd34d;
+  }
+  .an-kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 760px) {
+    .an-kpi-row { grid-template-columns: repeat(2, 1fr); }
+  }
+  .an-kpi-card {
+    background: #14171c;
+    border: 1px solid #2b313a;
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .an-kpi-card span {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: #8b949e;
+    margin-bottom: 4px;
+  }
+  .an-kpi-card strong {
+    font-size: 18px;
+    font-weight: 900;
+    color: #f8f9fa;
+  }
+
+  /* 기능 5: SVG 잔고 곡선 & MDD 차트 */
+  .chart-container {
+    position: relative;
+    background: #14171c;
+    border: 1px solid #2b313a;
+    border-radius: 10px;
+    padding: 12px;
+  }
+  .chart-legend {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .leg-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+  }
+  .svg-tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: rgba(13, 16, 20, 0.95);
+    border: 1px solid #3b82f6;
+    color: #f8f9fa;
+    padding: 8px 11px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.5;
+    display: none;
+    z-index: 50;
+    white-space: nowrap;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+  }
+
+  /* 기능 3: 원칙 준수 vs 위반 대조 & 셋업 태그 통계 테이블 */
+  .rule-compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 720px) {
+    .rule-compare-grid { grid-template-columns: 1fr; }
+  }
+  .rc-box {
+    background: #14171c;
+    border: 1px solid #2b313a;
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .rc-box.ok { border-top: 3px solid #4ade80; }
+  .rc-box.bad { border-top: 3px solid #f87171; }
+  .rc-box-title {
+    font-size: 14px;
+    font-weight: 800;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .rc-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    text-align: center;
+  }
+  .rc-stat-item span { display: block; font-size: 11px; color: #8b949e; margin-bottom: 3px; }
+  .rc-stat-item strong { font-size: 15px; font-weight: 800; }
+
+  .stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .stats-table th {
+    background: #14171c;
+    color: #8b949e;
+    font-weight: 700;
+    padding: 10px 8px;
+    border-bottom: 1px solid #2c323b;
+    text-align: center;
+  }
+  .stats-table td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #22262e;
+    text-align: center;
+  }
+  .win-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: center;
+  }
+  .win-bar-bg {
+    width: 80px;
+    height: 7px;
+    background: #0d1014;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .win-bar-fill {
+    height: 100%;
+    background: #4ade80;
+  }
+
+  /* 기능 4: 시간대(세션)별 성과 & 24시간 히트맵 */
+  .session-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 820px) {
+    .session-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  .session-card {
+    background: #14171c;
+    border: 1px solid #2b313a;
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .session-card h4 { font-size: 13px; font-weight: 800; color: #e9ecef; margin-bottom: 2px; }
+  .session-card .s-time { font-size: 11px; color: #8b949e; margin-bottom: 8px; line-height: 1.35; }
+  .session-card .s-metrics {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .heatmap-24 {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 6px;
+  }
+  @media (max-width: 760px) {
+    .heatmap-24 { grid-template-columns: repeat(6, 1fr); }
+  }
+  .hm-cell {
+    background: #14171c;
+    border: 1px solid #2b313a;
+    border-radius: 8px;
+    padding: 8px 4px;
+    text-align: center;
+    transition: transform 0.12s;
+  }
+  .hm-cell:hover { transform: translateY(-2px); border-color: #60a5fa; }
+  .hm-cell.pos-high { background: #14432a; border-color: #2ea043; }
+  .hm-cell.pos-low  { background: #132c20; border-color: #238636; }
+  .hm-cell.neg-low  { background: #33181b; border-color: #b91c1c; }
+  .hm-cell.neg-high { background: #521419; border-color: #ef4444; }
+  .hm-hour { font-size: 11px; font-weight: 700; color: #adb5bd; display: block; margin-bottom: 3px; }
+  .hm-pnl  { font-size: 12px; font-weight: 800; display: block; }
+  .hm-cnt  { font-size: 10px; color: #8b949e; display: block; margin-top: 2px; }
+
+  .gallery-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.88);
+    z-index: 950;
+    flex-direction: column;
+    padding: 24px;
+    overflow-y: auto;
+  }
+  .gallery-modal.open { display: flex; }
+  .gallery-modal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1300px;
+    width: 100%;
+    margin: 0 auto 16px;
+  }
+  .gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 16px;
+    max-width: 1300px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  .gallery-card {
+    background: #1b1f24;
+    border: 1px solid #30363d;
+    border-radius: 10px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .gallery-card img {
+    width: 100%;
+    max-height: 360px;
+    object-fit: contain;
+    background: #0d1014;
+    border-radius: 6px;
+    cursor: zoom-in;
+  }
+
+  .img-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.94);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    cursor: zoom-out;
+  }
+  .img-modal.open { display: flex; }
+  .img-modal img { max-width: 96vw; max-height: 94vh; border-radius: 8px; }
+</style>
+</head>
+<body>
+
+<!-- 상단 공통 탭 및 백업/복기 바 -->
+<header class="global-header">
+  <div class="nav-tabs">
+    <button type="button" class="nav-tab active" data-tab="calc">1. 랏수·평단 계산기</button>
+    <button type="button" class="nav-tab" data-tab="ledger">2. 월별 매매기록</button>
+    <button type="button" class="nav-tab" data-tab="journal">3. 건별 매매일지</button>
+    <button type="button" class="nav-tab" data-tab="analytics">4. 성과·통계 분석</button>
+  </div>
+  <div class="global-tools">
+    <button type="button" class="tool-btn ai-btn" id="copyAiReportBtn">📋 AI 복기용 복사</button>
+    <button type="button" class="tool-btn" id="exportBackupBtn">💾 백업 저장</button>
+    <button type="button" class="tool-btn" id="importBackupBtn">📂 백업 불러오기</button>
+    <input type="file" id="importFileInput" accept=".json" style="display:none;">
+  </div>
+</header>
+
+<!-- ================= 탭 1: 포지션 랏수 & 평단가 계산기 ================= -->
+<section id="view-calc" class="tab-view active single-mode">
+  <div class="quad-top-bar">
+    <div style="display:flex; align-items:center; gap:14px;">
+      <div class="quad-seed-wrap">
+        <span>공통 현재 시드 ($):</span>
+        <input type="number" id="globalSeedInput" value="1000" min="1" step="any">
+      </div>
+      <div class="quad-gk-wrap">
+        <span class="gk-status" id="quadGkStatus">진입 대기</span>
+        <button type="button" class="reset-btn" id="toggleQuadGkBtn">🛡️ 진입 체크리스트</button>
+        <div class="quad-gk-popover" id="quadGkPopover"></div>
+      </div>
+    </div>
+    <button type="button" class="mode-btn" id="exitQuadBtn">단일 모드로 돌아가기</button>
+  </div>
+
+  <div class="gatekeeper-card" id="gatekeeperSingleWrap"></div>
+
+  <div class="quad-grid" id="quadGrid"></div>
+</section>
+
+<!-- ================= 탭 2: 월별 매매기록 장부 ================= -->
+<section id="view-ledger" class="tab-view">
+  <div class="ledger-full-wrap">
+    <div class="ledger-controls">
+      <div class="month-selector">
+        <button type="button" class="month-nav-btn" id="prevMonthBtn">◀</button>
+        <input type="month" id="monthInput">
+        <button type="button" class="month-nav-btn" id="nextMonthBtn">▶</button>
+      </div>
+      <div class="ledger-kpis">
+        <div class="kpi-chip">월 누적 손익 <strong id="kpiMonthPnl">$0</strong></div>
+        <div class="kpi-chip">월 수익률 <strong id="kpiMonthPct">0.00%</strong></div>
+        <div class="kpi-chip">무사고 연속 <strong id="kpiStreak">0일</strong></div>
+        <div class="kpi-chip">목표 수익률(%) <input type="number" id="monthTargetPct" value="20" step="any"></div>
+      </div>
+    </div>
+
+    <div class="ledger-table-wrap">
+      <table class="ledger-table">
+        <thead>
+          <tr>
+            <th>날짜 / 입출금</th>
+            <th>시작금액 ($)</th>
+            <th>마감금액 ($)</th>
+            <th>수익금액 ($)</th>
+            <th>수익률 (%)</th>
+            <th>무사고</th>
+            <th style="text-align:left; padding-left:12px;">핵심메모</th>
+          </tr>
+        </thead>
+        <tbody id="ledgerBody"></tbody>
+        <tfoot>
+          <tr>
+            <td>월간 합계</td>
+            <td id="footStart">-</td>
+            <td id="footEnd">-</td>
+            <td id="footPnl">$0</td>
+            <td id="footPct">0.00%</td>
+            <td id="footSafe">
+              <div class="safe-summary-stack">
+                <span class="pos">무사고 0일</span>
+                <span class="neg">위반 0일</span>
+              </div>
+            </td>
+            <td id="footGoalDiff" style="text-align:left; padding-left:12px; color:#93c5fd;">목표 대비 -</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 탭 3: 건별 매매일지 + 기능 2 (서킷브레이커) ================= -->
+<section id="view-journal" class="tab-view">
+  <div class="page-wrap">
+    <div class="circuit-banner" id="circuitBanner">
+      <div class="cb-main">
+        <span class="cb-icon" id="cbIcon">🚨</span>
+        <div class="cb-text">
+          <h3 id="cbTitle">[서킷브레이커 발동] 일일 한도에 도달했습니다!</h3>
+          <p id="cbDesc">즉시 HTS / MT4를 종료하고 차트에서 이탈하십시오. 추가 진입은 뇌동·복수 매매입니다.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="killswitch-wrap">
+      <div class="ks-controls">
+        <span class="ks-title">🛑 일일 서킷브레이커 설정</span>
+        <div class="ks-input-group">
+          <span>일일 최대 손실($)</span>
+          <input type="number" id="ksMaxLossInput" value="60" min="0" step="1">
+        </div>
+        <div class="ks-input-group">
+          <span>일일 최대 매매(회)</span>
+          <input type="number" id="ksMaxTradesInput" value="3" min="0" step="1">
+        </div>
+      </div>
+
+      <div class="ks-gauges">
+        <div class="ks-gauge-box">
+          <div class="ks-gauge-top">
+            <span>오늘 누적 손익</span>
+            <span id="ksLossText">$0 / 한도 -$60</span>
+          </div>
+          <div class="ks-bar-bg"><div class="ks-bar-fill" id="ksLossBar"></div></div>
+        </div>
+        <div class="ks-gauge-box">
+          <div class="ks-gauge-top">
+            <span>오늘 매매 횟수</span>
+            <span id="ksTradeText">0회 / 한도 3회</span>
+          </div>
+          <div class="ks-bar-bg"><div class="ks-bar-fill" id="ksTradeBar"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="journal-grid">
+      <div class="j-form-card">
+        <div class="j-form-title">
+          <span>매매일지 기록</span>
+          <span style="font-size:11px; color:#8b949e; font-weight:500;">차트 Ctrl+V 연속 붙여넣기</span>
+        </div>
+
+        <div class="j-row-3">
+          <div>
+            <label>날짜</label>
+            <input type="date" id="jDate">
+          </div>
+          <div>
+            <label>진입 시간</label>
+            <input type="time" id="jTime">
+          </div>
+          <div>
+            <label>종목</label>
+            <select id="jSym">
+              <option value="XAUUSD">XAUUSD</option>
+              <option value="US100">US100</option>
+              <option value="BTCUSD">BTCUSD</option>
+              <option value="ETHUSD">ETHUSD</option>
+              <option value="기타">기타</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="j-row-2">
+          <div>
+            <label>포지션</label>
+            <select id="jSide">
+              <option value="BUY">BUY (매수)</option>
+              <option value="SELL">SELL (매도)</option>
+            </select>
+          </div>
+          <div>
+            <label>손익 ($)</label>
+            <input type="number" id="jPnl" placeholder="예: 35 또는 -20" step="any">
+          </div>
+        </div>
+
+        <div class="j-row-2">
+          <div>
+            <label>셋업 태그</label>
+            <div class="setup-select-row">
+              <select id="jSetupSelect"></select>
+              <button type="button" class="tag-manage-btn" id="toggleManageTagsBtn" title="생성한 태그 삭제 관리">관리</button>
+            </div>
+            <div class="new-tag-box" id="newTagBox">
+              <input type="text" id="newTagInput" placeholder="예: #2,0,-2 전환">
+              <button type="button" class="small-add-btn" id="confirmNewTagBtn">생성</button>
+            </div>
+            <div class="tag-manage-panel" id="tagManagePanel"></div>
+          </div>
+          <div>
+            <label>원칙 준수 여부</label>
+            <select id="jRule">
+              <option value="준수 (O)">준수 (O)</option>
+              <option value="위반 - 조기익절">위반 - 조기익절</option>
+              <option value="위반 - 뇌동진입">위반 - 뇌동진입</option>
+              <option value="위반 - 손절미준수">위반 - 손절미준수</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="j-field">
+          <label>진입 이유 (근거)</label>
+          <textarea id="jEntryReason" placeholder="타임프레임, 키레벨, 캔들 패턴 등"></textarea>
+        </div>
+
+        <div class="j-field">
+          <label>청산 이유 & 감정 상태</label>
+          <textarea id="jExitReason" placeholder="목표가 도달 / 조기 청산 이유 및 당시 심리"></textarea>
+        </div>
+
+        <div class="j-field">
+          <label>주의점 / 다음 매매 개선점</label>
+          <input type="text" id="jLesson" placeholder="핵심 교훈 한 줄">
+        </div>
+
+        <div class="review-builder">
+          <label style="margin-bottom:5px;">복기 피드백 추가 (중복 선택 가능)</label>
+          <div class="review-builder-head">
+            <select id="reviewTypeSelect">
+              <option value="">+ 항목 선택 (잘한 점 / 반복실수 / 지킬 원칙)</option>
+              <option value="good">🟢 잘한 점 (강화할 행동)</option>
+              <option value="mistake">🔴 반복되는 실수 (소거할 행동)</option>
+              <option value="rule">🔵 다음 거래에서 반드시 지킬 원칙</option>
+            </select>
+          </div>
+          <div class="review-blocks" id="reviewBlocks"></div>
+        </div>
+
+        <div class="j-field">
+          <label>차트 이미지 첨부 (여러 장 가능 · 자동 압축)</label>
+          <div class="img-drop-zone" id="imgDropZone">클릭하여 여러 장 선택 또는 캡처 후 Ctrl+V 연속 붙여넣기</div>
+          <input type="file" id="jImgInput" accept="image/*" multiple style="display:none;">
+          <div class="img-preview-grid" id="imgPreviewGrid"></div>
+        </div>
+
+        <button type="button" class="save-j-btn" id="saveJournalBtn">+ 매매일지 저장하기</button>
+      </div>
+
+      <div>
+        <div class="j-list-header">
+          <strong style="font-size:15px;">기록된 매매일지 (<span id="jCount">0</span>건)</strong>
+          <div class="j-filters">
+            <select id="jFilterPeriod">
+              <option value="ALL">전체 기간</option>
+              <option value="TODAY">오늘 (일별)</option>
+              <option value="WEEK">최근 7일 (주별)</option>
+              <option value="MONTH">이번 달 (월별)</option>
+            </select>
+            <select id="jFilterSym">
+              <option value="ALL">전체 종목</option>
+              <option value="XAUUSD">XAUUSD</option>
+              <option value="US100">US100</option>
+              <option value="BTCUSD">BTCUSD</option>
+              <option value="ETHUSD">ETHUSD</option>
+              <option value="기타">기타</option>
+            </select>
+            <select id="jFilterSetup">
+              <option value="ALL">전체 셋업태그</option>
+            </select>
+            <select id="jFilterReview">
+              <option value="ALL">전체 복기유형</option>
+              <option value="good">🟢 잘한 점 포함</option>
+              <option value="mistake">🔴 반복실수 포함</option>
+              <option value="rule">🔵 지킬 원칙 포함</option>
+            </select>
+            <select id="jFilterRule">
+              <option value="ALL">전체 원칙여부</option>
+              <option value="OK">원칙 준수만</option>
+              <option value="VIOLATION">원칙 위반만</option>
+            </select>
+          </div>
+        </div>
+        <div class="j-cards" id="jCardsList"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 탭 4: 성과·통계 분석 (기능 3, 4, 5) ================= -->
+<section id="view-analytics" class="tab-view">
+  <div class="page-wrap">
+    <!-- 기능 5: 계좌 잔고 우상향 곡선 & 드로우다운(MDD) 차트 -->
+    <div class="analytics-section">
+      <div class="an-sec-head">
+        <div>
+          <div class="an-sec-title">📈 계좌 잔고 우상향 곡선 & 드로우다운 (MDD)</div>
+          <div class="an-sec-sub">2. 월별 매매기록 장부의 일별 마감금액과 순수 매매손익(입출금 제외) 기반 실시간 추이</div>
+        </div>
+      </div>
+
+      <div class="an-kpi-row">
+        <div class="an-kpi-card"><span>순수 매매 누적 손익</span><strong id="anCumPnl">$0</strong></div>
+        <div class="an-kpi-card"><span>역대 최고 잔고 (Peak)</span><strong id="anPeakBal">-</strong></div>
+        <div class="an-kpi-card"><span>최대 낙폭 (MDD)</span><strong id="anMdd" class="neg">$0 (0.00%)</strong></div>
+        <div class="an-kpi-card"><span>장부 기록 일수</span><strong id="anTotalDays">0일</strong></div>
+      </div>
+
+      <div class="chart-container" id="equityChartWrap">
+        <div class="chart-legend">
+          <span><i class="leg-dot" style="background:#3b82f6;"></i>계좌 마감 잔고 ($)</span>
+          <span><i class="leg-dot" style="background:#4ade80;"></i>순수 매매 누적손익 ($)</span>
+          <span><i class="leg-dot" style="background:#f87171;"></i>드로우다운 (고점 대비 낙폭 %)</span>
+        </div>
+        <div id="equitySvgArea"></div>
+        <div class="svg-tooltip" id="svgTooltip"></div>
+      </div>
+    </div>
+
+    <!-- 기능 3: 원칙 준수 vs 위반 비교 & 셋업 태그별 승률·기댓값 통계 -->
+    <div class="analytics-section">
+      <div class="an-sec-head">
+        <div>
+          <div class="an-sec-title">🎯 원칙 준수 효과 & 셋업 태그별 승률·기댓값 분석</div>
+          <div class="an-sec-sub">감정이 아닌 데이터로 '돈을 벌어주는 셋업'과 '원칙 준수의 가치'를 검증합니다.</div>
+        </div>
+        <select id="anPeriodFilter" style="width:auto; font-size:12px; padding:6px 10px;">
+          <option value="ALL">전체 매매일지 기준</option>
+          <option value="MONTH">이번 달 기준</option>
+          <option value="DAYS30">최근 30일 기준</option>
+          <option value="DAYS7">최근 7일 기준</option>
+        </select>
+      </div>
+
+      <div class="rule-compare-grid" id="ruleCompareGrid"></div>
+
+      <div style="overflow-x:auto;">
+        <table class="stats-table">
+          <thead>
+            <tr>
+              <th style="text-align:left; padding-left:12px;">셋업 태그</th>
+              <th>총 매매</th>
+              <th>승 / 패</th>
+              <th>승률 (%)</th>
+              <th>평균 익절 ($)</th>
+              <th>평균 손절 ($)</th>
+              <th>1회 기댓값 ($)</th>
+              <th>누적 순손익 ($)</th>
+            </tr>
+          </thead>
+          <tbody id="setupStatsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 기능 4: 서머타임 자동 반영 시간대(세션)별 성과 & 24시간 히트맵 -->
+    <div class="analytics-section">
+      <div class="an-sec-head">
+        <div>
+          <div class="an-sec-title">
+            <span>🕒 시간대(세션)별 성과 & 24시간 수익 히트맵</span>
+            <span class="dst-pill winter" id="currentDstBadge">❄️ 현재: 서머타임 해제 (표준시 · 동절기)</span>
+          </div>
+          <div class="an-sec-sub">각 거래 날짜의 서머타임 적용 여부(미국 3월 둘째 일요일~11월 첫째 일요일 / 유럽 3월 마지막~10월 마지막 일요일)를 자동 판별해 정확히 분류합니다.</div>
+        </div>
+        <select id="anDstFilter" style="width:auto; font-size:12px; padding:6px 10px;">
+          <option value="ALL">전체 기간 (날짜별 자동반영)</option>
+          <option value="DST">☀️ 서머타임 적용일만</option>
+          <option value="STD">❄️ 서머타임 해제(표준시)만</option>
+        </select>
+      </div>
+
+      <div class="session-grid" id="sessionGrid"></div>
+      <div class="heatmap-24" id="heatmap24Grid"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 다중 차트 갤러리 모달 -->
+<div class="gallery-modal" id="galleryModal">
+  <div class="gallery-modal-head">
+    <strong id="galleryModalTitle" style="font-size:16px; color:#f8f9fa;">첨부된 차트 모아보기</strong>
+    <button type="button" class="reset-btn" id="closeGalleryBtn" style="font-size:13px; padding:6px 14px;">✕ 닫기</button>
+  </div>
+  <div class="gallery-grid" id="galleryGrid"></div>
+</div>
+
+<!-- 단일 이미지 전체화면 확대 모달 -->
+<div class="img-modal" id="imgModal">
+  <img id="imgModalSrc" src="">
+</div>
+
+<script>
+  /* ============================================================================
+     0. 대용량 IndexedDB 스토리지 엔진 & 서머타임(DST) 자동 판별 유틸리티
+  ============================================================================ */
+  const DB_NAME = "TradingAllInOneDB";
+  const DB_VERSION = 1;
+  let db = null;
+
+  function getLocalTodayStr() {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  function getLocalTimeStr() {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, "0");
+    const mm = String(now.getMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+  }
+
+  // N번째 일요일 날짜(일) 구하기 (month: 1~12)
+  function getNthSunday(year, month, n) {
+    const firstDay = new Date(year, month - 1, 1).getDay(); // 0=일요일
+    const firstSunday = firstDay === 0 ? 1 : 8 - firstDay;
+    return firstSunday + (n - 1) * 7;
+  }
+
+  // 마지막 일요일 날짜(일) 구하기 (month: 1~12)
+  function getLastSunday(year, month) {
+    const lastDate = new Date(year, month, 0);
+    return lastDate.getDate() - lastDate.getDay();
+  }
+
+  // 미국 서머타임 여부 (3월 둘째 주 일요일 ~ 11월 첫째 주 일요일 전날) -> MT4 서버·미장 기준
+  function isUsDstDate(dateStr) {
+    if (!dateStr || dateStr.length < 10) return false;
+    const [y, m, d] = dateStr.split("-").map(Number);
+    if (!y || !m || !d) return false;
+    const startDay = getNthSunday(y, 3, 2);
+    const endDay = getNthSunday(y, 11, 1);
+    const cur = y * 10000 + m * 100 + d;
+    const start = y * 10000 + 300 + startDay;
+    const end = y * 10000 + 1100 + endDay;
+    return cur >= start && cur < end;
+  }
+
+  // 유럽(런던) 서머타임 여부 (3월 마지막 주 일요일 ~ 10월 마지막 주 일요일 전날)
+  function isEuDstDate(dateStr) {
+    if (!dateStr || dateStr.length < 10) return false;
+    const [y, m, d] = dateStr.split("-").map(Number);
+    if (!y || !m || !d) return false;
+    const startDay = getLastSunday(y, 3);
+    const endDay = getLastSunday(y, 10);
+    const cur = y * 10000 + m * 100 + d;
+    const start = y * 10000 + 300 + startDay;
+    const end = y * 10000 + 1000 + endDay;
+    return cur >= start && cur < end;
+  }
+
+  function fmtIntUsd(val, showPlus = false) {
+    const num = Math.round(Number(val) || 0);
+    const absStr = Math.abs(num).toLocaleString("en-US");
+    if (num < 0) return `-$${absStr}`;
+    if (num > 0 && showPlus) return `+$${absStr}`;
+    return `$${absStr}`;
+  }
+
+  function fmtDecUsd(val, showPlus = false) {
+    const num = Number(val) || 0;
+    const absStr = Math.abs(num).toFixed(2);
+    if (num < 0) return `-$${absStr}`;
+    if (num > 0 && showPlus) return `+$${absStr}`;
+    return `$${absStr}`;
+  }
+
+  function initDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = e => {
+        const d = e.target.result;
+        if (!d.objectStoreNames.contains("kv")) d.createObjectStore("kv");
+        if (!d.objectStoreNames.contains("journals")) d.createObjectStore("journals", { keyPath: "id" });
+      };
+      req.onsuccess = e => { db = e.target.result; resolve(db); };
+      req.onerror = e => reject(e);
+    });
+  }
+
+  function dbGet(store, key) {
+    return new Promise(resolve => {
+      const tx = db.transaction(store, "readonly");
+      const req = tx.objectStore(store).get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    });
+  }
+
+  function dbPut(store, val, key) {
+    return new Promise(resolve => {
+      const tx = db.transaction(store, "readwrite");
+      if (key !== undefined) tx.objectStore(store).put(val, key);
+      else tx.objectStore(store).put(val);
+      tx.oncomplete = () => resolve(true);
+    });
+  }
+
+  function dbDelete(store, key) {
+    return new Promise(resolve => {
+      const tx = db.transaction(store, "readwrite");
+      tx.objectStore(store).delete(key);
+      tx.oncomplete = () => resolve(true);
+    });
+  }
+
+  function dbGetAll(store) {
+    return new Promise(resolve => {
+      const tx = db.transaction(store, "readonly");
+      const req = tx.objectStore(store).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+    });
+  }
+
+  /* ============================================================================
+     1. 상단 탭 전환 로직
+  ============================================================================ */
+  document.querySelectorAll(".nav-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".tab-view").forEach(v => v.classList.remove("active"));
+      tab.classList.add("active");
+      document.getElementById(`view-${tab.dataset.tab}`).classList.add("active");
+
+      if (tab.dataset.tab === "journal") {
+        if (document.getElementById("jDate").dataset.auto !== "manual") {
+          document.getElementById("jDate").value = getLocalTodayStr();
+        }
+        if (document.getElementById("jTime").dataset.auto !== "manual") {
+          document.getElementById("jTime").value = getLocalTimeStr();
+        }
+        updateKillSwitch();
+      } else if (tab.dataset.tab === "analytics") {
+        renderAnalytics();
+      }
+    });
+  });
+
+  /* ============================================================================
+     1-B. 기능 1: 진입 전 강제 체크리스트 (Pre-Trade Gatekeeper)
+  ============================================================================ */
+  const DEFAULT_PRE_TRADE_RULES = [
+    { id: 1, text: "① 상위 프레임 추세·키레벨 일치", checked: false },
+    { id: 2, text: "② 1% 기준 랏수 & SL 포인트 계산 완료", checked: false },
+    { id: 3, text: "③ 손절 후 15분 쿨다운 / 뇌동 아님", checked: false }
+  ];
+  let preTradeRules = JSON.parse(JSON.stringify(DEFAULT_PRE_TRADE_RULES));
+  let isEditingGk = false;
+
+  const gatekeeperSingleWrap = document.getElementById("gatekeeperSingleWrap");
+  const quadGkPopover = document.getElementById("quadGkPopover");
+  const quadGkStatus = document.getElementById("quadGkStatus");
+
+  function buildGatekeeperInnerHtml() {
+    const uncheckedCount = preTradeRules.filter(r => !r.checked).length;
+    const isAllReady = preTradeRules.length > 0 && uncheckedCount === 0;
+    const statusText = preTradeRules.length === 0
+      ? "체크 항목 없음"
+      : (isAllReady ? "✅ 진입 승인 (READY)" : `⚠️ 진입 대기 (${uncheckedCount}개 미확인)`);
+
+    return `
+      <div class="gk-header">
+        <div class="gk-title-wrap">
+          <span class="gk-title">🛡️ 진입 전 강제 체크리스트</span>
+          <span class="gk-status ${isAllReady ? "ready" : ""}">${statusText}</span>
+        </div>
+        <div class="gk-actions">
+          <button type="button" class="reset-btn gk-reset-btn">체크 초기화</button>
+          <button type="button" class="reset-btn gk-edit-btn">${isEditingGk ? "편집 완료" : "+ 조건 / 편집"}</button>
+        </div>
+      </div>
+      <div class="gk-list">
+        ${preTradeRules.map((r, idx) => `
+          <div class="gk-item ${r.checked ? "checked" : ""}" data-gk-idx="${idx}">
+            <span class="gk-box">${r.checked ? "✓" : ""}</span>
+            <span>${escapeHtml(r.text)}</span>
+            <button type="button" class="gk-del-rule" data-gk-del="${idx}" title="삭제">✕</button>
+          </div>
+        `).join("")}
+      </div>
+      <div class="gk-add-bar">
+        <input type="text" class="gk-new-input" placeholder="새 진입 원칙 입력 (예: ④ 지표 발표 15분 전후 회피)">
+        <button type="button" class="small-add-btn gk-add-btn">추가</button>
+      </div>
+    `;
+  }
+
+  function renderGatekeeper() {
+    const uncheckedCount = preTradeRules.filter(r => !r.checked).length;
+    const isAllReady = preTradeRules.length > 0 && uncheckedCount === 0;
+
+    gatekeeperSingleWrap.classList.toggle("ready", isAllReady);
+    gatekeeperSingleWrap.classList.toggle("editing", isEditingGk);
+    quadGkPopover.classList.toggle("editing", isEditingGk);
+
+    quadGkStatus.textContent = isAllReady ? "✅ 진입 승인" : `⚠️ 미확인 ${uncheckedCount}건`;
+    quadGkStatus.className = "gk-status" + (isAllReady ? " ready" : "");
+
+    const html = buildGatekeeperInnerHtml();
+    gatekeeperSingleWrap.innerHTML = html;
+    quadGkPopover.innerHTML = html;
+
+    [gatekeeperSingleWrap, quadGkPopover].forEach(root => {
+      root.querySelectorAll(".gk-item").forEach(item => {
+        item.addEventListener("click", async e => {
+          if (e.target.classList.contains("gk-del-rule")) return;
+          const idx = Number(item.dataset.gkIdx);
+          preTradeRules[idx].checked = !preTradeRules[idx].checked;
+          await dbPut("kv", preTradeRules, "preTradeRules");
+          renderGatekeeper();
+        });
+      });
+
+      root.querySelectorAll(".gk-del-rule").forEach(btn => {
+        btn.addEventListener("click", async e => {
+          e.stopPropagation();
+          const idx = Number(btn.dataset.gkDel);
+          preTradeRules.splice(idx, 1);
+          await dbPut("kv", preTradeRules, "preTradeRules");
+          renderGatekeeper();
+        });
+      });
+
+      root.querySelector(".gk-reset-btn").addEventListener("click", async () => {
+        preTradeRules.forEach(r => r.checked = false);
+        await dbPut("kv", preTradeRules, "preTradeRules");
+        renderGatekeeper();
+      });
+
+      root.querySelector(".gk-edit-btn").addEventListener("click", () => {
+        isEditingGk = !isEditingGk;
+        renderGatekeeper();
+      });
+
+      const addInp = root.querySelector(".gk-new-input");
+      const addBtn = root.querySelector(".gk-add-btn");
+      const doAdd = async () => {
+        const val = addInp.value.trim();
+        if (!val) return;
+        preTradeRules.push({ id: Date.now(), text: val, checked: false });
+        await dbPut("kv", preTradeRules, "preTradeRules");
+        renderGatekeeper();
+      };
+      addBtn.addEventListener("click", doAdd);
+      addInp.addEventListener("keydown", e => {
+        if (e.key === "Enter") { e.preventDefault(); doAdd(); }
+      });
+    });
+  }
+
+  document.getElementById("toggleQuadGkBtn").addEventListener("click", () => {
+    quadGkPopover.classList.toggle("open");
+  });
+
+  /* ============================================================================
+     2. 탭 1: 포지션 랏수 & 평단가 계산기 (기존 로직 100% 유지)
+  ============================================================================ */
+  const SPECS = {
+    XAU:   { label: "XAU (좌상)",   baseLot1k: 0.01, usdPerPtAtBase: 1.0,  usdPerPtPerLot: 100.0, rule: "1pt = $1" },
+    US100: { label: "US100 (우상)", baseLot1k: 0.10, usdPerPtAtBase: 0.1,  usdPerPtPerLot: 1.0,   rule: "10pt = $1" },
+    BTC:   { label: "BTC (좌하)",   baseLot1k: 0.01, usdPerPtAtBase: 0.01, usdPerPtPerLot: 1.0,   rule: "100pt = $1" },
+    ETH:   { label: "ETH (우하)",   baseLot1k: 1.00, usdPerPtAtBase: 1.0,  usdPerPtPerLot: 1.0,   rule: "1pt = $1" }
+  };
+  const SYM_ORDER = ["XAU", "US100", "BTC", "ETH"];
+  const STEPS = ["최초", "1차", "2차", "3차", "4차"];
+
+  let globalSeed = parseFloat(localStorage.getItem("calc_seed")) || 1000;
+  let activeSingleSym = localStorage.getItem("calc_sym") || "XAU";
+  let isQuadMode = localStorage.getItem("calc_quad_mode") === "true";
+
+  const calcView = document.getElementById("view-calc");
+  const globalSeedInput = document.getElementById("globalSeedInput");
+  globalSeedInput.value = globalSeed;
+  const quadGrid = document.getElementById("quadGrid");
+
+  SYM_ORDER.forEach(sym => {
+    const spec = SPECS[sym];
+    const cell = document.createElement("div");
+    cell.className = "quad-cell" + (sym === activeSingleSym ? " active-single" : "");
+    cell.dataset.sym = sym;
+
+    const rowsHtml = STEPS.map((stepLabel, idx) => `
+      <tr>
+        <td class="step-col">${stepLabel}</td>
+        <td><input type="number" class="p-in" data-sym="${sym}" data-idx="${idx}" placeholder="가격" step="any"></td>
+        <td><input type="number" class="l-in" data-sym="${sym}" data-idx="${idx}" placeholder="LOT" step="any"></td>
+        <td class="avg-out-cell" id="${sym}-step-avg-${idx}">-</td>
+        <td class="avg-out-cell" id="${sym}-step-lot-${idx}">-</td>
+      </tr>
+    `).join("");
+
+    cell.innerHTML = `
+      <div class="quad-toolbar">
+        <span class="quad-badge">${spec.label}</span>
+        <div class="quad-actions">
+          <button type="button" class="reset-btn reset-all-sym" data-sym="${sym}">종목 초기화</button>
+          <button type="button" class="mode-btn expand-sym-btn" data-sym="${sym}">단일 확대</button>
+        </div>
+      </div>
+
+      <div class="calc-layout">
+        <div class="container">
+          <div class="top-action-bar mode-switch-single">
+            <button type="button" class="reset-btn reset-all-sym" data-sym="${sym}">초기화</button>
+            <button type="button" class="mode-btn to-quad-btn">⊞ 4분할 동시 보기</button>
+          </div>
+
+          <div class="row">
+            <div class="field single-only-seed">
+              <label>현재 시드 ($)</label>
+              <input type="number" class="seed-input" data-sym="${sym}" value="${globalSeed}" min="1" step="any">
+            </div>
+            <div class="field">
+              <label>손절 폭 (Point)</label>
+              <input type="number" class="sl-point-input" data-sym="${sym}" placeholder="예: 6.44" min="0" step="any">
+            </div>
+          </div>
+
+          <div class="symbols">
+            ${SYM_ORDER.map(s => `
+              <button type="button" class="sym-btn ${s === sym ? "active" : ""}" data-target="${s}">
+                <span class="sym-name">${s}</span>
+                <span class="sym-unit unit-tag-${s}">0.00랏</span>
+              </button>
+            `).join("")}
+          </div>
+
+          <div class="info-bar">
+            <div>1총알: <strong id="${sym}-bullet">0.00랏</strong> (<span>${spec.rule}</span>)</div>
+            <div>1총알 손실: <strong id="${sym}-bullet-loss">$0.00</strong></div>
+          </div>
+
+          <div class="cards">
+            <div class="card">
+              <div class="risk-tag"><span class="risk-pct">-2%</span><span class="risk-usd" id="${sym}-usd-2">(-$20)</span></div>
+              <div class="main-out"><span class="lot-val" id="${sym}-lot-2">0.00랏</span><span class="mult-val" id="${sym}-mult-2">(0.0배)</span></div>
+              <div class="sub-out"><div>2분할 <b id="${sym}-s2-2">0.00</b></div><div>3분할 <b id="${sym}-s3-2">0.00</b></div></div>
+            </div>
+            <div class="card">
+              <div class="risk-tag"><span class="risk-pct">-3%</span><span class="risk-usd" id="${sym}-usd-3">(-$30)</span></div>
+              <div class="main-out"><span class="lot-val" id="${sym}-lot-3">0.00랏</span><span class="mult-val" id="${sym}-mult-3">(0.0배)</span></div>
+              <div class="sub-out"><div>2분할 <b id="${sym}-s2-3">0.00</b></div><div>3분할 <b id="${sym}-s3-3">0.00</b></div></div>
+            </div>
+            <div class="card">
+              <div class="risk-tag"><span class="risk-pct">-5%</span><span class="risk-usd" id="${sym}-usd-5">(-$50)</span></div>
+              <div class="main-out"><span class="lot-val" id="${sym}-lot-5">0.00랏</span><span class="mult-val" id="${sym}-mult-5">(0.0배)</span></div>
+              <div class="sub-out"><div>2분할 <b id="${sym}-s2-5">0.00</b></div><div>3분할 <b id="${sym}-s3-5">0.00</b></div></div>
+            </div>
+            <div class="card custom">
+              <div class="risk-tag">
+                <span class="risk-pct">-</span>
+                <input type="number" class="custom-pct-input" data-sym="${sym}" value="10" min="0" step="any">
+                <span class="risk-pct">%</span>
+                <span class="risk-usd" id="${sym}-usd-c">(-$100)</span>
+              </div>
+              <div class="main-out"><span class="lot-val" id="${sym}-lot-c">0.00랏</span><span class="mult-val" id="${sym}-mult-c">(0.0배)</span></div>
+              <div class="sub-out"><div>2분할 <b id="${sym}-s2-c">0.00</b></div><div>3분할 <b id="${sym}-s3-c">0.00</b></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="side-panel">
+          <div class="side-header">
+            <span class="side-title">평단가 계산기 (${sym})</span>
+            <button type="button" class="reset-btn reset-avg-only" data-sym="${sym}">평단 초기화</button>
+          </div>
+          <div class="sl-box">
+            <span>손절 가격 (SL)</span>
+            <input type="number" class="avg-sl-input" data-sym="${sym}" placeholder="손절라인 가격" step="any">
+          </div>
+          <table class="avg-table">
+            <thead><tr><th>구분</th><th>진입 가격</th><th>LOT</th><th>평단가</th><th>비중</th></tr></thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+          <div class="avg-summary">
+            <div class="sum-row"><span>최종 평단가</span><strong id="${sym}-final-avg">-</strong></div>
+            <div class="sum-row"><span>총 LOT</span><strong id="${sym}-final-lot">-</strong></div>
+            <div class="sum-row loss-row"><span>SL 도달 시 손절</span><strong id="${sym}-final-loss">-</strong></div>
+          </div>
+        </div>
+      </div>
+    `;
+    quadGrid.appendChild(cell);
+  });
+
+  function renderCalcRow(sym, key, pct, seed, bulletLot, lossPerBullet) {
+    const maxLossUsd = seed * (pct / 100);
+    let exactLot = 0, exactMult = 0;
+    if (lossPerBullet > 0 && bulletLot > 0) {
+      exactMult = maxLossUsd / lossPerBullet;
+      exactLot = bulletLot * exactMult;
+    }
+    document.getElementById(`${sym}-usd-${key}`).textContent = `(-$${maxLossUsd.toFixed(0)})`;
+    document.getElementById(`${sym}-lot-${key}`).textContent = `${exactLot.toFixed(2)}랏`;
+    document.getElementById(`${sym}-mult-${key}`).textContent = `(${exactMult.toFixed(1)}배)`;
+    document.getElementById(`${sym}-s2-${key}`).textContent = (exactLot / 2).toFixed(2);
+    document.getElementById(`${sym}-s3-${key}`).textContent = (exactLot / 3).toFixed(2);
+  }
+
+  function updateSymbol(sym) {
+    const spec = SPECS[sym];
+    const ratio = globalSeed / 1000;
+    const cell = document.querySelector(`.quad-cell[data-sym="${sym}"]`);
+    const sl = parseFloat(cell.querySelector(".sl-point-input").value) || 0;
+    const customPct = parseFloat(cell.querySelector(".custom-pct-input").value) || 0;
+
+    const bulletLot = spec.baseLot1k * ratio;
+    const usdPerPt = spec.usdPerPtAtBase * ratio;
+    const lossPerBullet = sl * usdPerPt;
+
+    document.getElementById(`${sym}-bullet`).textContent = `${bulletLot.toFixed(2)}랏`;
+    document.getElementById(`${sym}-bullet-loss`).textContent = `-$${lossPerBullet.toFixed(2)}`;
+
+    renderCalcRow(sym, "2", 2, globalSeed, bulletLot, lossPerBullet);
+    renderCalcRow(sym, "3", 3, globalSeed, bulletLot, lossPerBullet);
+    renderCalcRow(sym, "5", 5, globalSeed, bulletLot, lossPerBullet);
+    renderCalcRow(sym, "c", customPct, globalSeed, bulletLot, lossPerBullet);
+
+    const slPrice = parseFloat(cell.querySelector(".avg-sl-input").value);
+    const pInputs = cell.querySelectorAll(".p-in");
+    const lInputs = cell.querySelectorAll(".l-in");
+    let cumCost = 0, cumLot = 0;
+
+    for (let i = 0; i < STEPS.length; i++) {
+      const p = parseFloat(pInputs[i].value);
+      const l = parseFloat(lInputs[i].value);
+      if (p > 0 && l > 0) {
+        cumCost += p * l;
+        cumLot += l;
+        document.getElementById(`${sym}-step-avg-${i}`).textContent = (cumCost / cumLot).toFixed(2);
+        document.getElementById(`${sym}-step-lot-${i}`).textContent = cumLot.toFixed(2);
+      } else {
+        document.getElementById(`${sym}-step-avg-${i}`).textContent = "-";
+        document.getElementById(`${sym}-step-lot-${i}`).textContent = "-";
+      }
+    }
+
+    const finalAvgEl = document.getElementById(`${sym}-final-avg`);
+    const finalLotEl = document.getElementById(`${sym}-final-lot`);
+    const finalLossEl = document.getElementById(`${sym}-final-loss`);
+
+    if (cumLot > 0) {
+      const finalAvg = cumCost / cumLot;
+      finalAvgEl.textContent = finalAvg.toFixed(2);
+      finalLotEl.textContent = `${cumLot.toFixed(2)} 랏`;
+      if (!isNaN(slPrice) && slPrice > 0) {
+        const diffPts = Math.abs(finalAvg - slPrice);
+        const lossUsd = diffPts * cumLot * spec.usdPerPtPerLot;
+        const lossPct = globalSeed > 0 ? (lossUsd / globalSeed) * 100 : 0;
+        finalLossEl.textContent = `-$${lossUsd.toFixed(2)} (-${lossPct.toFixed(2)}%)`;
+      } else {
+        finalLossEl.textContent = "-";
+      }
+    } else {
+      finalAvgEl.textContent = "-";
+      finalLotEl.textContent = "-";
+      finalLossEl.textContent = "-";
+    }
+  }
+
+  function syncSeed(newSeed, sourceEl) {
+    globalSeed = parseFloat(newSeed) || 0;
+    localStorage.setItem("calc_seed", globalSeed);
+    if (sourceEl !== globalSeedInput) globalSeedInput.value = newSeed;
+    document.querySelectorAll(".seed-input").forEach(el => {
+      if (el !== sourceEl) el.value = newSeed;
+    });
+    const ratio = globalSeed / 1000;
+    SYM_ORDER.forEach(s => {
+      const bLot = SPECS[s].baseLot1k * ratio;
+      document.querySelectorAll(`.unit-tag-${s}`).forEach(tag => tag.textContent = `${bLot.toFixed(2)}랏`);
+      updateSymbol(s);
+    });
+  }
+
+  function applyLayoutMode() {
+    localStorage.setItem("calc_quad_mode", isQuadMode);
+    localStorage.setItem("calc_sym", activeSingleSym);
+    quadGkPopover.classList.remove("open");
+    if (isQuadMode) {
+      calcView.classList.remove("single-mode");
+      calcView.classList.add("quad-mode");
+    } else {
+      calcView.classList.remove("quad-mode");
+      calcView.classList.add("single-mode");
+      document.querySelectorAll(".quad-cell").forEach(cell => {
+        cell.classList.toggle("active-single", cell.dataset.sym === activeSingleSym);
+      });
+    }
+  }
+
+  globalSeedInput.addEventListener("input", e => syncSeed(e.target.value, e.target));
+  document.querySelectorAll(".seed-input").forEach(el => el.addEventListener("input", e => syncSeed(e.target.value, e.target)));
+  document.querySelectorAll(".sl-point-input, .custom-pct-input, .avg-sl-input, .p-in, .l-in").forEach(el => {
+    el.addEventListener("input", () => updateSymbol(el.dataset.sym));
+  });
+  document.querySelectorAll(".sym-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      activeSingleSym = btn.dataset.target;
+      applyLayoutMode();
+      document.querySelector(`.quad-cell[data-sym="${activeSingleSym}"] .sl-point-input`).focus();
+    });
+  });
+  document.querySelectorAll(".to-quad-btn").forEach(btn => btn.addEventListener("click", () => { isQuadMode = true; applyLayoutMode(); }));
+  document.getElementById("exitQuadBtn").addEventListener("click", () => { isQuadMode = false; applyLayoutMode(); });
+  document.querySelectorAll(".expand-sym-btn").forEach(btn => {
+    btn.addEventListener("click", () => { activeSingleSym = btn.dataset.sym; isQuadMode = false; applyLayoutMode(); });
+  });
+  document.querySelectorAll(".reset-all-sym").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const sym = btn.dataset.sym;
+      const cell = document.querySelector(`.quad-cell[data-sym="${sym}"]`);
+      cell.querySelector(".sl-point-input").value = "";
+      cell.querySelector(".avg-sl-input").value = "";
+      cell.querySelectorAll(".p-in, .l-in").forEach(el => el.value = "");
+      updateSymbol(sym);
+    });
+  });
+  document.querySelectorAll(".reset-avg-only").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const sym = btn.dataset.sym;
+      const cell = document.querySelector(`.quad-cell[data-sym="${sym}"]`);
+      cell.querySelector(".avg-sl-input").value = "";
+      cell.querySelectorAll(".p-in, .l-in").forEach(el => el.value = "");
+      updateSymbol(sym);
+    });
+  });
+
+  syncSeed(globalSeed, null);
+  applyLayoutMode();
+
+  /* ============================================================================
+     3. 탭 2: 월별 매매기록 장부 (기존 로직 100% 유지)
+  ============================================================================ */
+  const monthInput = document.getElementById("monthInput");
+  const ledgerBody = document.getElementById("ledgerBody");
+  const monthTargetPctInput = document.getElementById("monthTargetPct");
+  let ledgerStore = {};
+
+  monthInput.value = getLocalTodayStr().slice(0, 7);
+
+  function shiftMonth(ym, delta) {
+    const [y, m] = ym.split("-").map(Number);
+    const d = new Date(y, m - 1 + delta, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  }
+
+  function getDaysInMonth(ym) {
+    const [y, m] = ym.split("-").map(Number);
+    return new Date(y, m, 0).getDate();
+  }
+
+  function renderLedger() {
+    const ym = monthInput.value || getLocalTodayStr().slice(0, 7);
+    if (!ledgerStore[ym]) ledgerStore[ym] = { targetPct: 20, days: {} };
+    const mData = ledgerStore[ym];
+    monthTargetPctInput.value = mData.targetPct ?? 20;
+
+    const totalDays = getDaysInMonth(ym);
+    ledgerBody.innerHTML = "";
+
+    for (let d = 1; d <= totalDays; d++) {
+      const dateStr = `${ym}-${String(d).padStart(2, "0")}`;
+      const row = mData.days[dateStr] || { start: "", end: "", io: "", safe: "NONE", memo: "" };
+
+      const cleanStart = row.start !== "" && !isNaN(row.start) ? Math.round(Number(row.start)) : "";
+      const cleanEnd = row.end !== "" && !isNaN(row.end) ? Math.round(Number(row.end)) : "";
+      const ioNum = Math.round(Number(row.io) || 0);
+
+      const tr = document.createElement("tr");
+      tr.dataset.date = dateStr;
+      tr.dataset.io = ioNum || "";
+
+      const safeLabel = row.safe === "OK" ? "무사고" : (row.safe === "FAIL" ? "위반" : "-");
+      const safeClass = row.safe === "OK" ? "ok" : (row.safe === "FAIL" ? "fail" : "");
+
+      const ioBtnText = ioNum !== 0 ? `입출 ${ioNum > 0 ? "+" : ""}${ioNum.toLocaleString()}` : "+입출금";
+      const ioBtnCls = ioNum !== 0 ? "io-badge-btn has-io" : "io-badge-btn";
+
+      tr.innerHTML = `
+        <td class="date-col">
+          <div class="date-cell-inner">
+            <span>${dateStr}</span>
+            <button type="button" class="${ioBtnCls}" title="당일 입출금이 있는 경우에만 클릭하여 입력">${ioBtnText}</button>
+          </div>
+        </td>
+        <td class="num-col"><input type="number" class="l-start" value="${cleanStart}" placeholder="시작" step="1"></td>
+        <td class="num-col"><input type="number" class="l-end" value="${cleanEnd}" placeholder="마감" step="1"></td>
+        <td class="pnl-col" id="pnl-${dateStr}">-</td>
+        <td class="pct-col" id="pct-${dateStr}">-</td>
+        <td class="safe-col"><button type="button" class="safe-toggle ${safeClass}" data-state="${row.safe}">${safeLabel}</button></td>
+        <td class="memo-col"><input type="text" class="l-memo" value="${escapeAttr(row.memo || "")}" title="${escapeAttr(row.memo || "")}" placeholder="당일 핵심 메모"></td>
+      `;
+      ledgerBody.appendChild(tr);
+    }
+
+    bindLedgerEvents();
+    recalcLedger();
+  }
+
+  function recalcLedger() {
+    const ym = monthInput.value || getLocalTodayStr().slice(0, 7);
+    const mData = ledgerStore[ym];
+    const targetPct = parseFloat(monthTargetPctInput.value) || 0;
+    mData.targetPct = targetPct;
+
+    let sumPnl = 0;
+    let firstStart = null;
+    let lastEnd = null;
+    let streak = 0;
+    let safeOkCount = 0;
+    let safeFailCount = 0;
+
+    const rows = ledgerBody.querySelectorAll("tr");
+    rows.forEach((tr, idx) => {
+      const dateStr = tr.dataset.date;
+      const startVal = tr.querySelector(".l-start").value;
+      const endVal = tr.querySelector(".l-end").value;
+      const ioVal = tr.dataset.io || "";
+      const safeState = tr.querySelector(".safe-toggle").dataset.state;
+      const memoInp = tr.querySelector(".l-memo");
+      const memoVal = memoInp.value;
+      memoInp.title = memoVal;
+
+      mData.days[dateStr] = { start: startVal, end: endVal, io: ioVal, safe: safeState, memo: memoVal };
+
+      const s = Math.round(parseFloat(startVal));
+      const e = Math.round(parseFloat(endVal));
+      const io = Math.round(parseFloat(ioVal)) || 0;
+
+      if (!isNaN(s) && s > 0 && firstStart === null) firstStart = s;
+      if (!isNaN(e) && e > 0) lastEnd = e;
+
+      const pnlCell = document.getElementById(`pnl-${dateStr}`);
+      const pctCell = document.getElementById(`pct-${dateStr}`);
+
+      if (!isNaN(s) && !isNaN(e) && s > 0) {
+        const pnl = Math.round(e - s - io);
+        const pct = (pnl / s) * 100;
+        sumPnl += pnl;
+
+        pnlCell.textContent = fmtIntUsd(pnl, true);
+        pnlCell.className = "pnl-col " + (pnl > 0 ? "pos" : (pnl < 0 ? "neg" : ""));
+
+        pctCell.textContent = `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`;
+        pctCell.className = "pct-col " + (pct > 0 ? "pos" : (pct < 0 ? "neg" : ""));
+
+        if (idx + 1 < rows.length) {
+          const nextStartInput = rows[idx + 1].querySelector(".l-start");
+          if (!nextStartInput.value) nextStartInput.placeholder = String(e);
+        }
+      } else {
+        pnlCell.textContent = "-";
+        pnlCell.className = "pnl-col";
+        pctCell.textContent = "-";
+        pctCell.className = "pct-col";
+      }
+
+      if (safeState === "OK") { streak++; safeOkCount++; }
+      else if (safeState === "FAIL") { streak = 0; safeFailCount++; }
+    });
+
+    const monthPct = (firstStart && firstStart > 0) ? (sumPnl / firstStart) * 100 : 0;
+
+    const kpiPnlEl = document.getElementById("kpiMonthPnl");
+    kpiPnlEl.textContent = fmtIntUsd(sumPnl, true);
+    kpiPnlEl.className = sumPnl >= 0 ? "pos" : "neg";
+
+    const kpiPctEl = document.getElementById("kpiMonthPct");
+    kpiPctEl.textContent = `${monthPct >= 0 ? "+" : ""}${monthPct.toFixed(2)}%`;
+    kpiPctEl.className = monthPct >= 0 ? "pos" : "neg";
+
+    document.getElementById("kpiStreak").textContent = `${streak}일`;
+
+    document.getElementById("footStart").textContent = firstStart ? fmtIntUsd(firstStart, false) : "-";
+    document.getElementById("footEnd").textContent = lastEnd ? fmtIntUsd(lastEnd, false) : "-";
+
+    const footPnlEl = document.getElementById("footPnl");
+    footPnlEl.textContent = fmtIntUsd(sumPnl, true);
+    footPnlEl.className = sumPnl >= 0 ? "pos" : "neg";
+
+    const footPctEl = document.getElementById("footPct");
+    footPctEl.textContent = `${monthPct >= 0 ? "+" : ""}${monthPct.toFixed(2)}%`;
+    footPctEl.className = monthPct >= 0 ? "pos" : "neg";
+
+    document.getElementById("footSafe").innerHTML = `
+      <div class="safe-summary-stack">
+        <span class="pos">무사고 ${safeOkCount}일</span>
+        <span class="neg">위반 ${safeFailCount}일</span>
+      </div>
+    `;
+
+    const diff = monthPct - targetPct;
+    document.getElementById("footGoalDiff").textContent = `목표 ${targetPct}% 대비 ${diff >= 0 ? "+" : ""}${diff.toFixed(2)}%`;
+
+    dbPut("kv", ledgerStore, "ledgerStore");
+  }
+
+  function bindLedgerEvents() {
+    ledgerBody.querySelectorAll("input").forEach(inp => {
+      inp.addEventListener("input", recalcLedger);
+      if (inp.classList.contains("l-start")) {
+        inp.addEventListener("focus", () => {
+          if (!inp.value && inp.placeholder && inp.placeholder !== "시작") {
+            inp.value = inp.placeholder;
+            recalcLedger();
+          }
+        });
+      }
+    });
+
+    ledgerBody.querySelectorAll(".io-badge-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const tr = btn.closest("tr");
+        const dateStr = tr.dataset.date;
+        const curIo = tr.dataset.io || "0";
+        const inputStr = prompt(`[${dateStr}] 입출금 금액($)을 입력하세요.\n(입금은 양수 예: 500 / 출금은 음수 예: -300 / 취소는 0)`, curIo);
+        if (inputStr === null) return;
+        const parsed = Math.round(parseFloat(inputStr) || 0);
+        tr.dataset.io = parsed === 0 ? "" : String(parsed);
+        btn.textContent = parsed !== 0 ? `입출 ${parsed > 0 ? "+" : ""}${parsed.toLocaleString()}` : "+입출금";
+        btn.className = parsed !== 0 ? "io-badge-btn has-io" : "io-badge-btn";
+        recalcLedger();
+      });
+    });
+
+    ledgerBody.querySelectorAll(".safe-toggle").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const cur = btn.dataset.state;
+        const next = cur === "NONE" ? "OK" : (cur === "OK" ? "FAIL" : "NONE");
+        btn.dataset.state = next;
+        btn.textContent = next === "OK" ? "무사고" : (next === "FAIL" ? "위반" : "-");
+        btn.className = "safe-toggle " + (next === "OK" ? "ok" : (next === "FAIL" ? "fail" : ""));
+        recalcLedger();
+      });
+    });
+  }
+
+  monthInput.addEventListener("change", renderLedger);
+  monthTargetPctInput.addEventListener("input", recalcLedger);
+  document.getElementById("prevMonthBtn").addEventListener("click", () => {
+    monthInput.value = shiftMonth(monthInput.value || getLocalTodayStr().slice(0, 7), -1);
+    renderLedger();
+  });
+  document.getElementById("nextMonthBtn").addEventListener("click", () => {
+    monthInput.value = shiftMonth(monthInput.value || getLocalTodayStr().slice(0, 7), 1);
+    renderLedger();
+  });
+
+  /* ============================================================================
+     4. 탭 3: 건별 매매일지 + 기능 2 (일일 손실 & 매매 횟수 서킷브레이커)
+  ============================================================================ */
+  let currentImages = [];
+  let allJournals = [];
+  let setupTags = [];
+  let killSwitchConfig = { maxLoss: 60, maxTrades: 3 };
+
+  const ksMaxLossInput = document.getElementById("ksMaxLossInput");
+  const ksMaxTradesInput = document.getElementById("ksMaxTradesInput");
+
+  function updateKillSwitch() {
+    const maxLoss = Math.abs(parseFloat(ksMaxLossInput.value)) || 0;
+    const maxTrades = Math.floor(Math.abs(parseFloat(ksMaxTradesInput.value))) || 0;
+    killSwitchConfig = { maxLoss, maxTrades };
+
+    const todayStr = getLocalTodayStr();
+    const todayEntries = allJournals.filter(j => j.date === todayStr);
+    const todayPnl = todayEntries.reduce((acc, j) => acc + (Number(j.pnl) || 0), 0);
+    const todayLoss = todayPnl < 0 ? Math.abs(todayPnl) : 0;
+    const todayCount = todayEntries.length;
+
+    const lossTextEl = document.getElementById("ksLossText");
+    lossTextEl.textContent = `${fmtDecUsd(todayPnl, true)} / 한도 -$${maxLoss.toFixed(0)}`;
+    lossTextEl.className = todayPnl < 0 ? "neg" : (todayPnl > 0 ? "pos" : "");
+
+    const lossRatio = maxLoss > 0 ? Math.min(100, (todayLoss / maxLoss) * 100) : 0;
+    const lossBar = document.getElementById("ksLossBar");
+    lossBar.style.width = `${lossRatio}%`;
+    lossBar.className = "ks-bar-fill" + (lossRatio >= 100 ? " danger" : (lossRatio >= 80 ? " warn" : ""));
+
+    const tradeTextEl = document.getElementById("ksTradeText");
+    tradeTextEl.textContent = `${todayCount}회 / 한도 ${maxTrades}회`;
+    const tradeRatio = maxTrades > 0 ? Math.min(100, (todayCount / maxTrades) * 100) : 0;
+    const tradeBar = document.getElementById("ksTradeBar");
+    tradeBar.style.width = `${tradeRatio}%`;
+    tradeBar.className = "ks-bar-fill" + (tradeRatio >= 100 ? " danger" : (tradeRatio >= 80 ? " warn" : ""));
+
+    const banner = document.getElementById("circuitBanner");
+    const cbIcon = document.getElementById("cbIcon");
+    const cbTitle = document.getElementById("cbTitle");
+    const cbDesc = document.getElementById("cbDesc");
+
+    const lossHit = maxLoss > 0 && todayLoss >= maxLoss;
+    const tradeHit = maxTrades > 0 && todayCount >= maxTrades;
+    const lossWarn = maxLoss > 0 && todayLoss >= maxLoss * 0.8;
+    const tradeWarn = maxTrades > 0 && todayCount >= maxTrades * 0.8 && maxTrades > 1;
+
+    if (lossHit || tradeHit) {
+      banner.className = "circuit-banner triggered";
+      cbIcon.textContent = "🚨";
+      const reasons = [];
+      if (lossHit) reasons.push(`일일 손실 한도(-$${maxLoss}) 도달 (현재 ${fmtDecUsd(todayPnl, true)})`);
+      if (tradeHit) reasons.push(`일일 최대 매매 횟수(${maxTrades}회) 도달`);
+      cbTitle.textContent = `[서킷브레이커 발동] ${reasons.join(" · ")}`;
+      cbDesc.textContent = "오늘 매매는 공식 종료되었습니다. 즉시 HTS / MT4를 끄고 차트에서 이탈하십시오!";
+    } else if (lossWarn || tradeWarn) {
+      banner.className = "circuit-banner warn";
+      cbIcon.textContent = "⚠️";
+      cbTitle.textContent = "[한도 임박 경고] 일일 허용 한도의 80% 이상에 도달했습니다.";
+      cbDesc.textContent = "다음 진입이 오늘 마지막 기회가 될 수 있습니다. A+ 셋업이 아니면 절대 진입하지 마십시오.";
+    } else {
+      banner.className = "circuit-banner";
+    }
+  }
+
+  ksMaxLossInput.addEventListener("input", () => {
+    updateKillSwitch();
+    dbPut("kv", killSwitchConfig, "killSwitchConfig");
+  });
+  ksMaxTradesInput.addEventListener("input", () => {
+    updateKillSwitch();
+    dbPut("kv", killSwitchConfig, "killSwitchConfig");
+  });
+
+  const jDateInput = document.getElementById("jDate");
+  const jTimeInput = document.getElementById("jTime");
+  const jSetupSelect = document.getElementById("jSetupSelect");
+  const jFilterSetup = document.getElementById("jFilterSetup");
+  const newTagBox = document.getElementById("newTagBox");
+  const newTagInput = document.getElementById("newTagInput");
+  const tagManagePanel = document.getElementById("tagManagePanel");
+
+  jDateInput.value = getLocalTodayStr();
+  jTimeInput.value = getLocalTimeStr();
+
+  setInterval(() => {
+    const today = getLocalTodayStr();
+    const nowTime = getLocalTimeStr();
+    if (jDateInput.dataset.auto !== "manual" && jDateInput.value !== today) {
+      jDateInput.value = today;
+    }
+    if (jTimeInput.dataset.auto !== "manual" && jTimeInput.value !== nowTime) {
+      jTimeInput.value = nowTime;
+    }
+  }, 60000);
+  jDateInput.addEventListener("change", () => { jDateInput.dataset.auto = "manual"; });
+  jTimeInput.addEventListener("change", () => { jTimeInput.dataset.auto = "manual"; });
+
+  function renderSetupTagOptions(selectedVal) {
+    const prevFormVal = selectedVal !== undefined ? selectedVal : jSetupSelect.value;
+    const prevFilterVal = jFilterSetup.value;
+
+    jSetupSelect.innerHTML =
+      `<option value="">선택 안 함</option>` +
+      `<option value="__NEW__">+ 생성</option>` +
+      setupTags.map(t => `<option value="${escapeAttr(t)}">${escapeHtml(t)}</option>`).join("");
+
+    if (prevFormVal && setupTags.includes(prevFormVal)) {
+      jSetupSelect.value = prevFormVal;
+    } else {
+      jSetupSelect.value = "";
+    }
+
+    jFilterSetup.innerHTML =
+      `<option value="ALL">전체 셋업태그</option>` +
+      setupTags.map(t => `<option value="${escapeAttr(t)}">${escapeHtml(t)}</option>`).join("");
+
+    if (prevFilterVal && (prevFilterVal === "ALL" || setupTags.includes(prevFilterVal))) {
+      jFilterSetup.value = prevFilterVal;
+    }
+
+    renderTagManagePanel();
+  }
+
+  function renderTagManagePanel() {
+    if (setupTags.length === 0) {
+      tagManagePanel.innerHTML = `<span style="font-size:11px; color:#8b949e;">생성된 태그가 없습니다. 드롭다운에서 '+ 생성'을 눌러 추가하세요.</span>`;
+      return;
+    }
+    tagManagePanel.innerHTML = setupTags.map(t => `
+      <span class="tag-chip-del">
+        ${escapeHtml(t)}
+        <button type="button" data-del-tag="${escapeAttr(t)}" title="태그 삭제">✕</button>
+      </span>
+    `).join("");
+
+    tagManagePanel.querySelectorAll("button[data-del-tag]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const target = btn.dataset.delTag;
+        setupTags = setupTags.filter(item => item !== target);
+        await dbPut("kv", setupTags, "setupTags");
+        renderSetupTagOptions("");
+      });
+    });
+  }
+
+  document.getElementById("toggleManageTagsBtn").addEventListener("click", () => {
+    tagManagePanel.classList.toggle("open");
+  });
+
+  jSetupSelect.addEventListener("change", () => {
+    if (jSetupSelect.value === "__NEW__") {
+      newTagBox.classList.add("open");
+      newTagInput.value = "";
+      newTagInput.focus();
+    } else {
+      newTagBox.classList.remove("open");
+    }
+  });
+
+  async function addNewSetupTag() {
+    let raw = newTagInput.value.trim();
+    if (!raw) return;
+    if (!raw.startsWith("#")) raw = "#" + raw;
+    if (!setupTags.includes(raw)) {
+      setupTags.push(raw);
+      await dbPut("kv", setupTags, "setupTags");
+    }
+    newTagBox.classList.remove("open");
+    renderSetupTagOptions(raw);
+  }
+
+  document.getElementById("confirmNewTagBtn").addEventListener("click", addNewSetupTag);
+  newTagInput.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); addNewSetupTag(); }
+  });
+
+  const REVIEW_META = {
+    good:    { label: "🟢 잘한 점 (강화할 행동)", placeholder: "이번 거래에서 원칙대로 잘 실행한 점은?" },
+    mistake: { label: "🔴 반복되는 실수 (소거할 행동)", placeholder: "또 반복된 나쁜 습관·실수는 무엇인가?" },
+    rule:    { label: "🔵 다음 거래에서 반드시 지킬 원칙", placeholder: "다음 진입 전 반드시 확인할 절대 원칙" }
+  };
+
+  const reviewTypeSelect = document.getElementById("reviewTypeSelect");
+  const reviewBlocks = document.getElementById("reviewBlocks");
+
+  function addReviewBlock(type, presetText = "") {
+    if (!type || !REVIEW_META[type]) return;
+    const existing = reviewBlocks.querySelector(`.rev-block[data-type="${type}"]`);
+    if (existing) {
+      existing.querySelector("input").focus();
+      return;
+    }
+
+    const meta = REVIEW_META[type];
+    const div = document.createElement("div");
+    div.className = `rev-block ${type}`;
+    div.dataset.type = type;
+    div.innerHTML = `
+      <div class="rev-block-top">
+        <span>${meta.label}</span>
+        <button type="button" class="rev-remove-btn" title="항목 제거">✕</button>
+      </div>
+      <input type="text" value="${escapeAttr(presetText)}" placeholder="${meta.placeholder}">
+    `;
+    div.querySelector(".rev-remove-btn").addEventListener("click", () => div.remove());
+    reviewBlocks.appendChild(div);
+    if (!presetText) div.querySelector("input").focus();
+  }
+
+  reviewTypeSelect.addEventListener("change", () => {
+    const val = reviewTypeSelect.value;
+    if (val) {
+      addReviewBlock(val);
+      reviewTypeSelect.value = "";
+    }
+  });
+
+  function compressImageFile(file) {
+    return new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const MAX_W = 1100;
+          let w = img.width, h = img.height;
+          if (w > MAX_W) { h = Math.round(h * (MAX_W / w)); w = MAX_W; }
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL("image/jpeg", 0.72));
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function renderCurrentImagePreviews() {
+    const grid = document.getElementById("imgPreviewGrid");
+    grid.innerHTML = currentImages.map((src, idx) => `
+      <div class="img-thumb-item">
+        <img src="${src}">
+        <span class="img-thumb-idx">#${idx + 1}</span>
+        <button type="button" class="img-thumb-del" data-idx="${idx}">✕</button>
+      </div>
+    `).join("");
+
+    grid.querySelectorAll(".img-thumb-del").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const i = Number(btn.dataset.idx);
+        currentImages.splice(i, 1);
+        renderCurrentImagePreviews();
+      });
+    });
+  }
+
+  async function handleMultipleImageFiles(fileList) {
+    if (!fileList || fileList.length === 0) return;
+    for (const file of Array.from(fileList)) {
+      if (file && file.type.startsWith("image/")) {
+        const compressed = await compressImageFile(file);
+        currentImages.push(compressed);
+      }
+    }
+    renderCurrentImagePreviews();
+  }
+
+  const imgDropZone = document.getElementById("imgDropZone");
+  const jImgInput = document.getElementById("jImgInput");
+  imgDropZone.addEventListener("click", () => jImgInput.click());
+  jImgInput.addEventListener("change", async e => {
+    await handleMultipleImageFiles(e.target.files);
+    jImgInput.value = "";
+  });
+
+  document.addEventListener("paste", async e => {
+    if (!document.getElementById("view-journal").classList.contains("active")) return;
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const pastedFiles = [];
+    for (const item of items) {
+      if (item.type.startsWith("image/")) {
+        pastedFiles.push(item.getAsFile());
+      }
+    }
+    if (pastedFiles.length > 0) {
+      await handleMultipleImageFiles(pastedFiles);
+    }
+  });
+
+  document.getElementById("saveJournalBtn").addEventListener("click", async () => {
+    const selectedSetup = jSetupSelect.value === "__NEW__" ? "" : jSetupSelect.value;
+
+    const reviews = [];
+    reviewBlocks.querySelectorAll(".rev-block").forEach(block => {
+      const text = block.querySelector("input").value.trim();
+      if (text) reviews.push({ type: block.dataset.type, text });
+    });
+
+    const entry = {
+      id: Date.now(),
+      date: jDateInput.value || getLocalTodayStr(),
+      time: jTimeInput.value || getLocalTimeStr(),
+      sym: document.getElementById("jSym").value,
+      side: document.getElementById("jSide").value,
+      pnl: parseFloat(document.getElementById("jPnl").value) || 0,
+      setup: selectedSetup,
+      rule: document.getElementById("jRule").value,
+      entryReason: document.getElementById("jEntryReason").value.trim(),
+      exitReason: document.getElementById("jExitReason").value.trim(),
+      lesson: document.getElementById("jLesson").value.trim(),
+      reviews: reviews,
+      images: currentImages.slice()
+    };
+
+    await dbPut("journals", entry);
+    allJournals.unshift(entry);
+
+    jDateInput.value = getLocalTodayStr();
+    jDateInput.dataset.auto = "";
+    jTimeInput.value = getLocalTimeStr();
+    jTimeInput.dataset.auto = "";
+    document.getElementById("jPnl").value = "";
+    document.getElementById("jEntryReason").value = "";
+    document.getElementById("jExitReason").value = "";
+    document.getElementById("jLesson").value = "";
+    reviewBlocks.innerHTML = "";
+    currentImages = [];
+    jImgInput.value = "";
+    renderCurrentImagePreviews();
+
+    updateKillSwitch();
+    renderJournals();
+  });
+
+  function openChartGallery(images, titleText) {
+    const modal = document.getElementById("galleryModal");
+    const grid = document.getElementById("galleryGrid");
+    document.getElementById("galleryModalTitle").textContent = `${titleText} (총 ${images.length}장 · 클릭 시 크게 확대)`;
+
+    grid.innerHTML = images.map((src, idx) => `
+      <div class="gallery-card">
+        <div style="font-size:12px; font-weight:700; color:#8b949e;">차트 #${idx + 1}</div>
+        <img src="${src}" title="클릭하여 원본 크기로 확대">
+      </div>
+    `).join("");
+
+    grid.querySelectorAll("img").forEach(img => {
+      img.addEventListener("click", () => {
+        document.getElementById("imgModalSrc").src = img.src;
+        document.getElementById("imgModal").classList.add("open");
+      });
+    });
+
+    modal.classList.add("open");
+  }
+
+  document.getElementById("closeGalleryBtn").addEventListener("click", () => {
+    document.getElementById("galleryModal").classList.remove("open");
+  });
+
+  function renderJournals() {
+    const fPeriod = document.getElementById("jFilterPeriod").value;
+    const fSym = document.getElementById("jFilterSym").value;
+    const fSetup = document.getElementById("jFilterSetup").value;
+    const fReview = document.getElementById("jFilterReview").value;
+    const fRule = document.getElementById("jFilterRule").value;
+
+    const todayStr = getLocalTodayStr();
+    const todayDate = new Date(todayStr + "T00:00:00");
+    const sevenDaysAgo = new Date(todayDate);
+    sevenDaysAgo.setDate(todayDate.getDate() - 6);
+    const thisMonthPrefix = todayStr.slice(0, 7);
+
+    const filtered = allJournals
+      .slice()
+      .sort((a, b) => b.id - a.id)
+      .filter(j => {
+        if (fPeriod === "TODAY" && j.date !== todayStr) return false;
+        if (fPeriod === "WEEK") {
+          const d = new Date((j.date || "") + "T00:00:00");
+          if (isNaN(d) || d < sevenDaysAgo) return false;
+        }
+        if (fPeriod === "MONTH" && !(j.date || "").startsWith(thisMonthPrefix)) return false;
+
+        if (fSym !== "ALL" && j.sym !== fSym) return false;
+        if (fSetup !== "ALL" && j.setup !== fSetup) return false;
+
+        const revs = Array.isArray(j.reviews) ? j.reviews : [];
+        if (fReview !== "ALL" && !revs.some(r => r.type === fReview)) return false;
+
+        if (fRule === "OK" && !j.rule.startsWith("준수")) return false;
+        if (fRule === "VIOLATION" && j.rule.startsWith("준수")) return false;
+        return true;
+      });
+
+    document.getElementById("jCount").textContent = filtered.length;
+    const listEl = document.getElementById("jCardsList");
+    listEl.innerHTML = "";
+
+    filtered.forEach(j => {
+      const isOk = j.rule.startsWith("준수");
+      const pnlSign = j.pnl >= 0 ? "+" : "";
+      const pnlCls = j.pnl > 0 ? "pos" : (j.pnl < 0 ? "neg" : "");
+      const revs = Array.isArray(j.reviews) ? j.reviews : [];
+
+      const imgs = Array.isArray(j.images) && j.images.length > 0
+        ? j.images
+        : (j.image ? [j.image] : []);
+
+      const revHtml = revs.length > 0 ? `
+        <div class="j-rev-tags">
+          ${revs.map(r => {
+            const title = r.type === "good" ? "🟢 잘한 점" : (r.type === "mistake" ? "🔴 반복 실수" : "🔵 지킬 원칙");
+            return `<div class="rev-pill ${r.type}"><b>[${title}]</b>${escapeHtml(r.text)}</div>`;
+          }).join("")}
+        </div>
+      ` : "";
+
+      const chartHtml = imgs.length > 0 ? `
+        <div class="j-chart-box">
+          <img class="j-chart-thumb" src="${imgs[0]}" title="클릭하여 크게 보기">
+          ${imgs.length > 1 ? `<button type="button" class="more-imgs-btn" data-jid="${j.id}">+${imgs.length - 1}장 더보기</button>` : ""}
+        </div>
+      ` : "";
+
+      const card = document.createElement("div");
+      card.className = "j-item";
+      card.innerHTML = `
+        <div class="j-item-top">
+          <div class="j-badges">
+            <span style="font-size:12px; color:#8b949e; font-weight:700;">${j.date}</span>
+            ${j.time ? `<span class="badge time-tag">${escapeHtml(j.time)}</span>` : ""}
+            <span class="badge">${j.sym}</span>
+            <span class="badge ${j.side === "BUY" ? "buy" : "sell"}">${j.side}</span>
+            <span class="badge ${isOk ? "rule-ok" : "rule-no"}">${j.rule}</span>
+            ${j.setup ? `<span class="badge setup">${escapeHtml(j.setup)}</span>` : ""}
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <strong class="${pnlCls}" style="font-size:15px;">${pnlSign}$${j.pnl.toFixed(2)}</strong>
+            <button type="button" class="reset-btn del-j-btn" data-id="${j.id}">삭제</button>
+          </div>
+        </div>
+        <div class="j-item-body ${imgs.length > 0 ? "" : "no-img"}">
+          <div class="j-notes">
+            ${j.entryReason ? `<div><strong>[진입근거]</strong>${escapeHtml(j.entryReason)}</div>` : ""}
+            ${j.exitReason ? `<div><strong>[청산/감정]</strong>${escapeHtml(j.exitReason)}</div>` : ""}
+            ${j.lesson ? `<div><strong>[주의/개선]</strong><span style="color:#93c5fd;">${escapeHtml(j.lesson)}</span></div>` : ""}
+            ${revHtml}
+          </div>
+          ${chartHtml}
+        </div>
+      `;
+      listEl.appendChild(card);
+    });
+
+    listEl.querySelectorAll(".del-j-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = Number(btn.dataset.id);
+        await dbDelete("journals", id);
+        allJournals = allJournals.filter(item => item.id !== id);
+        updateKillSwitch();
+        renderJournals();
+      });
+    });
+
+    listEl.querySelectorAll(".j-chart-thumb").forEach(img => {
+      img.addEventListener("click", () => {
+        document.getElementById("imgModalSrc").src = img.src;
+        document.getElementById("imgModal").classList.add("open");
+      });
+    });
+
+    listEl.querySelectorAll(".more-imgs-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const jid = Number(btn.dataset.jid);
+        const found = allJournals.find(item => item.id === jid);
+        if (!found) return;
+        const imgs = Array.isArray(found.images) && found.images.length > 0
+          ? found.images
+          : (found.image ? [found.image] : []);
+        openChartGallery(imgs, `[${found.date}] ${found.sym} ${found.side}`);
+      });
+    });
+  }
+
+  /* ============================================================================
+     5. 탭 4: 성과·통계 분석 렌더링 엔진 (기능 3, 4, 5 + 서머타임 자동 반영)
+  ============================================================================ */
+  function renderAnalytics() {
+    renderEquityAndMddChart();
+    renderJournalAnalytics();
+  }
+
+  // 기능 5: 계좌 잔고 우상향 곡선 & 드로우다운(MDD)
+  function renderEquityAndMddChart() {
+    const points = [];
+    const allDates = new Set();
+
+    Object.keys(ledgerStore).forEach(ym => {
+      const days = ledgerStore[ym]?.days || {};
+      Object.keys(days).forEach(d => allDates.add(d));
+    });
+
+    const sortedDates = Array.from(allDates).sort();
+    let cumPurePnl = 0;
+    let runningPeak = 0;
+    let maxDdUsd = 0;
+    let maxDdPct = 0;
+
+    sortedDates.forEach(dateStr => {
+      const ym = dateStr.slice(0, 7);
+      const r = ledgerStore[ym]?.days?.[dateStr];
+      if (!r) return;
+      const s = parseFloat(r.start);
+      const e = parseFloat(r.end);
+      const io = parseFloat(r.io) || 0;
+
+      if (!isNaN(e) && e > 0) {
+        const dailyPnl = (!isNaN(s) && s > 0) ? Math.round(e - s - io) : 0;
+        cumPurePnl += dailyPnl;
+        if (e > runningPeak) runningPeak = e;
+        const ddUsd = Math.max(0, runningPeak - e);
+        const ddPct = runningPeak > 0 ? (ddUsd / runningPeak) * 100 : 0;
+        if (ddUsd > maxDdUsd) maxDdUsd = ddUsd;
+        if (ddPct > maxDdPct) maxDdPct = ddPct;
+
+        points.push({
+          date: dateStr,
+          end: Math.round(e),
+          dailyPnl,
+          cumPurePnl,
+          ddUsd: Math.round(ddUsd),
+          ddPct
+        });
+      }
+    });
+
+    const cumPnlEl = document.getElementById("anCumPnl");
+    cumPnlEl.textContent = fmtIntUsd(cumPurePnl, true);
+    cumPnlEl.className = cumPurePnl >= 0 ? "pos" : "neg";
+
+    document.getElementById("anPeakBal").textContent = runningPeak > 0 ? fmtIntUsd(runningPeak, false) : "-";
+    document.getElementById("anMdd").textContent = `-${fmtIntUsd(maxDdUsd, false).replace("$", "$")} (-${maxDdPct.toFixed(2)}%)`;
+    document.getElementById("anTotalDays").textContent = `${points.length}일`;
+
+    const area = document.getElementById("equitySvgArea");
+    if (points.length < 2) {
+      area.innerHTML = `<div style="padding:36px 16px; text-align:center; color:#8b949e; font-size:13px;">
+        2. 월별 매매기록 장부에서 <b>마감금액($)</b>을 2일 이상 입력하면 계좌 잔고 우상향 곡선과 MDD 그래프가 자동으로 그려집니다.
+      </div>`;
+      return;
+    }
+
+    const W = 860, H = 250;
+    const padL = 56, padR = 24, padT = 20, padB = 34;
+    const mainH = 145;
+    const ddTop = 180, ddH = 44;
+
+    const balVals = points.map(p => p.end);
+    const pnlVals = points.map(p => p.cumPurePnl);
+    const allMainVals = balVals.concat(pnlVals);
+    let minV = Math.min(...allMainVals);
+    let maxV = Math.max(...allMainVals);
+    if (minV === maxV) { minV -= 100; maxV += 100; }
+    const vRange = maxV - minV;
+
+    const maxDdForScale = Math.max(5, ...points.map(p => p.ddPct));
+
+    const getX = idx => padL + (idx / (points.length - 1)) * (W - padL - padR);
+    const getY = val => padT + (1 - (val - minV) / vRange) * mainH;
+
+    const balPoly = points.map((p, i) => `${getX(i).toFixed(1)},${getY(p.end).toFixed(1)}`).join(" ");
+    const pnlPoly = points.map((p, i) => `${getX(i).toFixed(1)},${getY(p.cumPurePnl).toFixed(1)}`).join(" ");
+
+    const gridLines = [0, 0.5, 1].map(t => {
+      const y = padT + t * mainH;
+      const val = Math.round(maxV - t * vRange);
+      return `
+        <line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="#262b33" stroke-dasharray="3,3" />
+        <text x="${padL - 8}" y="${y + 4}" fill="#6e7681" font-size="10" text-anchor="end">$${val.toLocaleString()}</text>
+      `;
+    }).join("");
+
+    const ddBars = points.map((p, i) => {
+      const x = getX(i);
+      const barH = (p.ddPct / maxDdForScale) * ddH;
+      return `<rect x="${x - 3}" y="${ddTop}" width="6" height="${Math.max(1, barH)}" fill="${p.ddPct > 0 ? "#ef4444" : "#262b33"}" rx="1" />`;
+    }).join("");
+
+    const hoverZones = points.map((p, i) => {
+      const x = getX(i);
+      const yBal = getY(p.end);
+      const yPnl = getY(p.cumPurePnl);
+      return `
+        <circle cx="${x}" cy="${yBal}" r="3.5" fill="#3b82f6" />
+        <circle cx="${x}" cy="${yPnl}" r="3" fill="#4ade80" />
+        <rect class="svg-hover-col" data-idx="${i}" x="${x - 10}" y="${padT}" width="20" height="${H - padT - 10}" fill="transparent" style="cursor:crosshair;" />
+      `;
+    }).join("");
+
+    area.innerHTML = `
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto; display:block;">
+        ${gridLines}
+        <line x1="${padL}" y1="${ddTop}" x2="${W - padR}" y2="${ddTop}" stroke="#30363d" />
+        <text x="${padL - 8}" y="${ddTop + 10}" fill="#f87171" font-size="9" text-anchor="end">MDD%</text>
+        ${ddBars}
+        <polyline fill="none" stroke="#4ade80" stroke-width="2" stroke-dasharray="4,2" points="${pnlPoly}" />
+        <polyline fill="none" stroke="#3b82f6" stroke-width="2.5" points="${balPoly}" />
+        ${hoverZones}
+        <text x="${padL}" y="${H - 6}" fill="#6e7681" font-size="10">${points[0].date}</text>
+        <text x="${W - padR}" y="${H - 6}" fill="#6e7681" font-size="10" text-anchor="end">${points[points.length - 1].date}</text>
+      </svg>
+    `;
+
+    const tooltip = document.getElementById("svgTooltip");
+    area.querySelectorAll(".svg-hover-col").forEach(col => {
+      col.addEventListener("mouseenter", e => {
+        const p = points[Number(col.dataset.idx)];
+        tooltip.innerHTML = `
+          <strong>📅 ${p.date}</strong><br>
+          마감 잔고: <b style="color:#60a5fa;">${fmtIntUsd(p.end, false)}</b><br>
+          당일 손익: <b class="${p.dailyPnl >= 0 ? "pos" : "neg"}">${fmtIntUsd(p.dailyPnl, true)}</b><br>
+          누적 순손익: <b class="${p.cumPurePnl >= 0 ? "pos" : "neg"}">${fmtIntUsd(p.cumPurePnl, true)}</b><br>
+          드로우다운: <b class="neg">-${fmtIntUsd(p.ddUsd, false)} (-${p.ddPct.toFixed(2)}%)</b>
+        `;
+        tooltip.style.display = "block";
+      });
+      col.addEventListener("mousemove", e => {
+        const rect = document.getElementById("equityChartWrap").getBoundingClientRect();
+        let left = e.clientX - rect.left + 12;
+        if (left + 190 > rect.width) left = e.clientX - rect.left - 195;
+        tooltip.style.left = `${Math.max(8, left)}px`;
+        tooltip.style.top = `${Math.max(8, e.clientY - rect.top - 20)}px`;
+      });
+      col.addEventListener("mouseleave", () => {
+        tooltip.style.display = "none";
+      });
+    });
+  }
+
+  function calcGroupMetrics(trades) {
+    const total = trades.length;
+    if (total === 0) {
+      return { total: 0, wins: 0, losses: 0, winRate: 0, avgWin: 0, avgLoss: 0, expectancy: 0, netPnl: 0 };
+    }
+    let wins = 0, losses = 0, sumWin = 0, sumLoss = 0, netPnl = 0;
+    trades.forEach(t => {
+      const p = Number(t.pnl) || 0;
+      netPnl += p;
+      if (p > 0) { wins++; sumWin += p; }
+      else if (p < 0) { losses++; sumLoss += Math.abs(p); }
+    });
+    const winRate = (wins / total) * 100;
+    const avgWin = wins > 0 ? sumWin / wins : 0;
+    const avgLoss = losses > 0 ? sumLoss / losses : 0;
+    const expectancy = netPnl / total;
+    return { total, wins, losses, winRate, avgWin, avgLoss, expectancy, netPnl };
+  }
+
+  function renderJournalAnalytics() {
+    const period = document.getElementById("anPeriodFilter").value;
+    const dstFilter = document.getElementById("anDstFilter").value;
+    const todayStr = getLocalTodayStr();
+    const todayDate = new Date(todayStr + "T00:00:00");
+    const d7 = new Date(todayDate); d7.setDate(todayDate.getDate() - 6);
+    const d30 = new Date(todayDate); d30.setDate(todayDate.getDate() - 29);
+    const monthPrefix = todayStr.slice(0, 7);
+
+    const trades = allJournals.filter(j => {
+      if (period === "MONTH") return (j.date || "").startsWith(monthPrefix);
+      if (period === "DAYS7") {
+        const d = new Date((j.date || "") + "T00:00:00");
+        return !isNaN(d) && d >= d7;
+      }
+      if (period === "DAYS30") {
+        const d = new Date((j.date || "") + "T00:00:00");
+        return !isNaN(d) && d >= d30;
+      }
+      return true;
+    });
+
+    // 1. 원칙 준수 vs 위반 비교
+    const okTrades = trades.filter(t => (t.rule || "").startsWith("준수"));
+    const badTrades = trades.filter(t => !(t.rule || "").startsWith("준수"));
+    const mOk = calcGroupMetrics(okTrades);
+    const mBad = calcGroupMetrics(badTrades);
+
+    document.getElementById("ruleCompareGrid").innerHTML = `
+      <div class="rc-box ok">
+        <div class="rc-box-title">
+          <span class="pos">🟢 원칙 준수 매매 (O)</span>
+          <span style="font-size:12px; color:#8b949e;">${mOk.total}건</span>
+        </div>
+        <div class="rc-stats">
+          <div class="rc-stat-item"><span>승률</span><strong>${mOk.winRate.toFixed(1)}%</strong></div>
+          <div class="rc-stat-item"><span>평균 손익</span><strong class="${mOk.expectancy >= 0 ? "pos" : "neg"}">${fmtDecUsd(mOk.expectancy, true)}</strong></div>
+          <div class="rc-stat-item"><span>승 / 패</span><strong>${mOk.wins}승 ${mOk.losses}패</strong></div>
+          <div class="rc-stat-item"><span>누적 손익</span><strong class="${mOk.netPnl >= 0 ? "pos" : "neg"}">${fmtDecUsd(mOk.netPnl, true)}</strong></div>
+        </div>
+      </div>
+      <div class="rc-box bad">
+        <div class="rc-box-title">
+          <span class="neg">🔴 원칙 위반 매매 (X)</span>
+          <span style="font-size:12px; color:#8b949e;">${mBad.total}건</span>
+        </div>
+        <div class="rc-stats">
+          <div class="rc-stat-item"><span>승률</span><strong>${mBad.winRate.toFixed(1)}%</strong></div>
+          <div class="rc-stat-item"><span>평균 손익</span><strong class="${mBad.expectancy >= 0 ? "pos" : "neg"}">${fmtDecUsd(mBad.expectancy, true)}</strong></div>
+          <div class="rc-stat-item"><span>승 / 패</span><strong>${mBad.wins}승 ${mBad.losses}패</strong></div>
+          <div class="rc-stat-item"><span>누적 손익</span><strong class="${mBad.netPnl >= 0 ? "pos" : "neg"}">${fmtDecUsd(mBad.netPnl, true)}</strong></div>
+        </div>
+      </div>
+    `;
+
+    // 2. 셋업 태그별 승률 & 기댓값 테이블
+    const setupMap = {};
+    trades.forEach(t => {
+      const key = t.setup && t.setup.trim() ? t.setup.trim() : "(태그 미지정)";
+      if (!setupMap[key]) setupMap[key] = [];
+      setupMap[key].push(t);
+    });
+
+    const setupKeys = Object.keys(setupMap).sort((a, b) => setupMap[b].length - setupMap[a].length);
+    const setupBody = document.getElementById("setupStatsBody");
+
+    if (setupKeys.length === 0) {
+      setupBody.innerHTML = `<tr><td colspan="8" style="padding:24px; color:#8b949e;">분석할 매매일지 데이터가 아직 없습니다.</td></tr>`;
+    } else {
+      setupBody.innerHTML = setupKeys.map(k => {
+        const m = calcGroupMetrics(setupMap[k]);
+        return `
+          <tr>
+            <td style="text-align:left; padding-left:12px; font-weight:800; color:#d8b4fe;">${escapeHtml(k)}</td>
+            <td>${m.total}건</td>
+            <td><span class="pos">${m.wins}승</span> / <span class="neg">${m.losses}패</span></td>
+            <td>
+              <div class="win-bar-wrap">
+                <div class="win-bar-bg"><div class="win-bar-fill" style="width:${m.winRate.toFixed(0)}%;"></div></div>
+                <strong>${m.winRate.toFixed(1)}%</strong>
+              </div>
+            </td>
+            <td class="pos">+$${m.avgWin.toFixed(2)}</td>
+            <td class="neg">-$${m.avgLoss.toFixed(2)}</td>
+            <td class="${m.expectancy >= 0 ? "pos" : "neg"}" style="font-weight:800;">${fmtDecUsd(m.expectancy, true)}</td>
+            <td class="${m.netPnl >= 0 ? "pos" : "neg"}" style="font-weight:900;">${fmtDecUsd(m.netPnl, true)}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    // 3. 서머타임(DST) 날짜별 자동 반영 시간대(세션)별 성과 & 24시간 히트맵
+    const isTodayUsDst = isUsDstDate(todayStr);
+    const isTodayEuDst = isEuDstDate(todayStr);
+    const dstBadge = document.getElementById("currentDstBadge");
+    if (isTodayUsDst) {
+      dstBadge.className = "dst-pill summer";
+      dstBadge.textContent = "☀️ 현재: 서머타임 적용 (하절기 · 1시간 단축)";
+    } else {
+      dstBadge.className = "dst-pill winter";
+      dstBadge.textContent = "❄️ 현재: 서머타임 해제 (표준시 · 동절기)";
+    }
+
+    const asiaLabelRange = isTodayUsDst
+      ? (isTodayEuDst ? "07:00 ~ 15:59 (하절기 기준)" : "07:00 ~ 16:59 (과도기 기준)")
+      : "08:00 ~ 16:59 (표준시 기준)";
+    const euLabelRange = isTodayEuDst
+      ? "16:00 ~ 22:29 (하절기 기준)"
+      : (isTodayUsDst ? "17:00 ~ 22:29 (과도기 기준)" : "17:00 ~ 23:29 (표준시 기준)");
+    const usLabelRange = isTodayUsDst
+      ? "22:30 ~ 04:59 (하절기 기준)"
+      : "23:30 ~ 05:59 (표준시 기준)";
+    const brkLabelRange = isTodayUsDst
+      ? "05:00 ~ 06:59 / 시간없음"
+      : "06:00 ~ 07:59 / 시간없음";
+
+    const sessions = [
+      { id: "ASIA", name: "🌏 아시아 세션", range: asiaLabelRange, list: [] },
+      { id: "EU",   name: "🇪🇺 유럽 세션",   range: euLabelRange,   list: [] },
+      { id: "US",   name: "🇺🇸 뉴욕 본장",   range: usLabelRange,   list: [] },
+      { id: "BRK",  name: "🌙 장마감·점검 / 미기록", range: brkLabelRange, list: [] }
+    ];
+
+    const hourBuckets = Array.from({ length: 24 }, (_, h) => ({ hour: h, count: 0, netPnl: 0 }));
+
+    trades.forEach(t => {
+      const tradeUsDst = isUsDstDate(t.date);
+      const tradeEuDst = isEuDstDate(t.date);
+
+      if (dstFilter === "DST" && !tradeUsDst) return;
+      if (dstFilter === "STD" && tradeUsDst) return;
+
+      if (!t.time || !t.time.includes(":")) {
+        sessions[3].list.push(t);
+        return;
+      }
+      const [hhStr, mmStr] = t.time.split(":");
+      const hh = parseInt(hhStr, 10);
+      const mm = parseInt(mmStr, 10) || 0;
+      if (isNaN(hh) || hh < 0 || hh > 23) {
+        sessions[3].list.push(t);
+        return;
+      }
+
+      hourBuckets[hh].count += 1;
+      hourBuckets[hh].netPnl += (Number(t.pnl) || 0);
+
+      // 해당 거래일(t.date)의 서머타임 여부에 따른 정확한 분 단위 경계값 계산
+      const asiaStartMin = tradeUsDst ? 7 * 60 : 8 * 60;           // 07:00 or 08:00
+      const euStartMin   = tradeEuDst ? 16 * 60 : 17 * 60;         // 16:00 or 17:00
+      const usStartMin   = tradeUsDst ? 22 * 60 + 30 : 23 * 60 + 30; // 22:30 or 23:30
+      const usEndMin     = tradeUsDst ? 5 * 60 : 6 * 60;           // 05:00 or 06:00
+
+      const totalMin = hh * 60 + mm;
+      if (totalMin >= asiaStartMin && totalMin < euStartMin) {
+        sessions[0].list.push(t);
+      } else if (totalMin >= euStartMin && totalMin < usStartMin) {
+        sessions[1].list.push(t);
+      } else if (totalMin >= usStartMin || totalMin < usEndMin) {
+        sessions[2].list.push(t);
+      } else {
+        sessions[3].list.push(t);
+      }
+    });
+
+    document.getElementById("sessionGrid").innerHTML = sessions.map(s => {
+      const m = calcGroupMetrics(s.list);
+      return `
+        <div class="session-card">
+          <h4>${s.name}</h4>
+          <div class="s-time">${s.range}</div>
+          <div class="s-metrics">
+            <span style="font-size:12px; color:#adb5bd;">${m.total}건 (승률 <b>${m.winRate.toFixed(0)}%</b>)</span>
+            <strong class="${m.netPnl > 0 ? "pos" : (m.netPnl < 0 ? "neg" : "")}" style="font-size:15px;">${fmtDecUsd(m.netPnl, true)}</strong>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    document.getElementById("heatmap24Grid").innerHTML = hourBuckets.map(b => {
+      let cls = "hm-cell";
+      if (b.count > 0) {
+        if (b.netPnl >= 50) cls += " pos-high";
+        else if (b.netPnl > 0) cls += " pos-low";
+        else if (b.netPnl <= -50) cls += " neg-high";
+        else if (b.netPnl < 0) cls += " neg-low";
+      }
+      const pnlLabel = b.count === 0 ? "-" : fmtIntUsd(b.netPnl, true);
+      const pnlTextCls = b.count === 0 ? "" : (b.netPnl > 0 ? "pos" : (b.netPnl < 0 ? "neg" : ""));
+      return `
+        <div class="${cls}" title="${String(b.hour).padStart(2, "0")}시: ${b.count}건 / 누적 ${fmtDecUsd(b.netPnl, true)}">
+          <span class="hm-hour">${String(b.hour).padStart(2, "0")}시</span>
+          <span class="hm-pnl ${pnlTextCls}">${pnlLabel}</span>
+          <span class="hm-cnt">${b.count}건</span>
+        </div>
+      `;
+    }).join("");
+  }
+
+  document.getElementById("anPeriodFilter").addEventListener("change", renderJournalAnalytics);
+  document.getElementById("anDstFilter").addEventListener("change", renderJournalAnalytics);
+
+  function escapeHtml(str) {
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+  }
+  function escapeAttr(str) {
+    return String(str).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  ["jFilterPeriod", "jFilterSym", "jFilterSetup", "jFilterReview", "jFilterRule"].forEach(id => {
+    document.getElementById(id).addEventListener("change", renderJournals);
+  });
+
+  document.getElementById("imgModal").addEventListener("click", () => {
+    document.getElementById("imgModal").classList.remove("open");
+  });
+
+  /* ============================================================================
+     6. 전체 백업(JSON 내보내기/불러오기) & AI 복기용 텍스트 복사
+  ============================================================================ */
+  document.getElementById("exportBackupBtn").addEventListener("click", () => {
+    const backupData = {
+      exportedAt: new Date().toISOString(),
+      calcSeed: globalSeed,
+      preTradeRules: preTradeRules,
+      killSwitchConfig: killSwitchConfig,
+      setupTags: setupTags,
+      ledgerStore: ledgerStore,
+      journals: allJournals
+    };
+    const blob = new Blob([JSON.stringify(backupData)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `trading_backup_${getLocalTodayStr()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  const importFileInput = document.getElementById("importFileInput");
+  document.getElementById("importBackupBtn").addEventListener("click", () => importFileInput.click());
+  importFileInput.addEventListener("change", e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        if (parsed.ledgerStore) {
+          ledgerStore = parsed.ledgerStore;
+          await dbPut("kv", ledgerStore, "ledgerStore");
+        }
+        if (Array.isArray(parsed.setupTags)) {
+          setupTags = parsed.setupTags;
+          await dbPut("kv", setupTags, "setupTags");
+        }
+        if (Array.isArray(parsed.preTradeRules)) {
+          preTradeRules = parsed.preTradeRules;
+          await dbPut("kv", preTradeRules, "preTradeRules");
+        }
+        if (parsed.killSwitchConfig) {
+          killSwitchConfig = parsed.killSwitchConfig;
+          ksMaxLossInput.value = killSwitchConfig.maxLoss ?? 60;
+          ksMaxTradesInput.value = killSwitchConfig.maxTrades ?? 3;
+          await dbPut("kv", killSwitchConfig, "killSwitchConfig");
+        }
+        if (Array.isArray(parsed.journals)) {
+          allJournals = parsed.journals;
+          for (const j of allJournals) await dbPut("journals", j);
+        }
+        if (parsed.calcSeed) syncSeed(parsed.calcSeed, null);
+        renderGatekeeper();
+        renderSetupTagOptions();
+        renderLedger();
+        updateKillSwitch();
+        renderJournals();
+        renderAnalytics();
+        alert("백업 데이터가 정상적으로 복원되었습니다.");
+      } catch (err) {
+        alert("올바른 백업 JSON 파일이 아닙니다.");
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  document.getElementById("copyAiReportBtn").addEventListener("click", async () => {
+    const ym = monthInput.value || getLocalTodayStr().slice(0, 7);
+    const mData = ledgerStore[ym] || { targetPct: 20, days: {} };
+    let lines = [`[트레이딩 월간 복기 데이터: ${ym}]`, `- 목표 수익률: ${mData.targetPct}%`, `\n1. 일별 매매기록:`];
+
+    Object.keys(mData.days).sort().forEach(d => {
+      const r = mData.days[d];
+      if (r.start || r.end || r.memo) {
+        lines.push(`- ${d} | 시작:${r.start || "-"} | 마감:${r.end || "-"} | 입출금:${r.io || 0} | 무사고:${r.safe} | 메모:${r.memo || ""}`);
+      }
+    });
+
+    const monthJournals = allJournals.filter(j => j.date && j.date.startsWith(ym));
+    lines.push(`\n2. 건별 매매일지 (${monthJournals.length}건):`);
+    monthJournals.forEach(j => {
+      const revs = Array.isArray(j.reviews) ? j.reviews.map(r => {
+        const tag = r.type === "good" ? "잘한점" : (r.type === "mistake" ? "반복실수" : "지킬원칙");
+        return `${tag}:${r.text}`;
+      }).join(" / ") : "";
+      const timeStr = j.time ? ` ${j.time}` : "";
+      lines.push(`- [${j.date}${timeStr}] ${j.sym} ${j.side} | 손익:$${j.pnl} | 원칙:${j.rule} | 셋업:${j.setup || "-"} | 진입:${j.entryReason} | 청산:${j.exitReason} | 교훈:${j.lesson}${revs ? ` | 피드백(${revs})` : ""}`);
+    });
+
+    await navigator.clipboard.writeText(lines.join("\n"));
+    alert(`${ym} 매매기록과 매매일지가 클립보드에 복사되었습니다.\n채팅창에 Ctrl+V로 붙여넣어 피드백을 요청하세요!`);
+  });
+
+  /* ============================================================================
+     7. 앱 부팅 (IndexedDB 데이터 로드)
+  ============================================================================ */
+  (async function boot() {
+    await initDB();
+    const savedLedger = await dbGet("kv", "ledgerStore");
+    if (savedLedger) ledgerStore = savedLedger;
+
+    const savedTags = await dbGet("kv", "setupTags");
+    if (Array.isArray(savedTags)) setupTags = savedTags;
+
+    const savedRules = await dbGet("kv", "preTradeRules");
+    if (Array.isArray(savedRules)) preTradeRules = savedRules;
+
+    const savedKs = await dbGet("kv", "killSwitchConfig");
+    if (savedKs) {
+      killSwitchConfig = savedKs;
+      ksMaxLossInput.value = killSwitchConfig.maxLoss ?? 60;
+      ksMaxTradesInput.value = killSwitchConfig.maxTrades ?? 3;
+    }
+
+    allJournals = await dbGetAll("journals");
+
+    renderGatekeeper();
+    renderSetupTagOptions();
+    renderLedger();
+    updateKillSwitch();
+    renderJournals();
+    renderAnalytics();
+  })();
+</script>
+</body>
+</html>
