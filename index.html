@@ -232,7 +232,6 @@
   .gatekeeper-card.editing .gk-add-bar { display: flex; }
   .gk-add-bar input { font-size: 12px; padding: 5px 8px; }
 
-  /* 4분할 모드용 게이트키퍼 팝오버 */
   .quad-gk-wrap {
     position: relative;
     display: flex;
@@ -837,14 +836,29 @@
     position: sticky;
     top: 62px;
   }
+  .j-form-card.editing-mode {
+    border-color: #f59e0b;
+    box-shadow: 0 0 16px rgba(245, 158, 11, 0.15);
+  }
   .j-form-title {
     font-size: 15px;
     font-weight: 800;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
     color: #f8f9fa;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 8px;
+  }
+  .draft-hint-banner {
+    background: rgba(59, 130, 246, 0.12);
+    border: 1px solid rgba(59, 130, 246, 0.35);
+    color: #bfdbfe;
+    font-size: 11px;
+    line-height: 1.45;
+    padding: 8px 10px;
+    border-radius: 8px;
+    margin-bottom: 12px;
   }
   .j-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
   .j-row-3 { display: grid; grid-template-columns: 1.15fr 0.9fr 0.95fr; gap: 6px; margin-bottom: 10px; }
@@ -1030,19 +1044,48 @@
     cursor: pointer;
   }
 
+  .form-btn-row {
+    display: grid;
+    grid-template-columns: 1fr 1.25fr;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .form-btn-row.single-btn {
+    grid-template-columns: 1fr;
+  }
+  .draft-j-btn {
+    width: 100%;
+    background: #1d2d44;
+    border: 1px solid #3b82f6;
+    color: #93c5fd;
+    font-size: 13px;
+    font-weight: 800;
+    padding: 11px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .draft-j-btn:hover { background: #254673; color: #ffffff; }
   .save-j-btn {
     width: 100%;
     background: #238636;
     border: 1px solid #2ea043;
     color: #ffffff;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 800;
-    padding: 11px;
+    padding: 11px 10px;
     border-radius: 8px;
     cursor: pointer;
-    margin-top: 6px;
+    transition: 0.15s;
   }
   .save-j-btn:hover { background: #2ea043; }
+  .save-j-btn.update-mode {
+    background: #b45309;
+    border-color: #f59e0b;
+  }
+  .save-j-btn.update-mode:hover {
+    background: #d97706;
+  }
 
   .j-list-header {
     display: flex;
@@ -1051,6 +1094,21 @@
     margin-bottom: 12px;
     gap: 8px;
     flex-wrap: wrap;
+  }
+  .j-list-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .draft-counter-pill {
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #2b2118;
+    border: 1px solid #f59e0b;
+    color: #fcd34d;
   }
   .j-filters { display: flex; gap: 6px; flex-wrap: wrap; }
   .j-filters select { width: auto; font-size: 12px; padding: 6px 8px; }
@@ -1061,6 +1119,10 @@
     border: 1px solid #2c323b;
     border-radius: 12px;
     padding: 16px;
+  }
+  .j-item.is-draft {
+    border-color: #d97706;
+    background: #1d1e22;
   }
   .j-item-top {
     display: flex;
@@ -1087,6 +1149,24 @@
   .badge.rule-no { background: #4a1d1f; color: #fca5a5; }
   .badge.setup { background: #2b213a; color: #d8b4fe; }
   .badge.time-tag { background: #14171c; border: 1px solid #30363d; color: #9ca3af; }
+  .badge.draft-badge { background: #422006; border: 1px solid #f59e0b; color: #fcd34d; }
+
+  .j-item-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .edit-j-btn {
+    background: #1d3557;
+    border: 1px solid #3b82f6;
+    color: #93c5fd;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 9px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .edit-j-btn:hover { background: #254673; color: #ffffff; }
 
   .j-item-body {
     display: grid;
@@ -1099,6 +1179,7 @@
   }
   .j-notes { display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.5; }
   .j-notes div strong { color: #8b949e; font-size: 12px; margin-right: 6px; }
+  .j-empty-note { color: #8b949e; font-size: 12px; font-style: italic; }
   .j-rev-tags {
     display: flex;
     flex-direction: column;
@@ -1655,10 +1736,14 @@
     </div>
 
     <div class="journal-grid">
-      <div class="j-form-card">
+      <div class="j-form-card" id="journalFormCard">
         <div class="j-form-title">
-          <span>매매일지 기록</span>
-          <span style="font-size:11px; color:#8b949e; font-weight:500;">차트 Ctrl+V 연속 붙여넣기</span>
+          <span id="jFormHeading">매매일지 기록</span>
+          <button type="button" class="reset-btn" id="cancelEditJournalBtn" style="display:none;">수정 취소</button>
+        </div>
+
+        <div class="draft-hint-banner">
+          ⚡ <b>빠른 임시저장:</b> 손익·셋업·차트만 넣고 <b>뼈대 임시저장</b>을 누르세요. 장 마감 후 카드의 <b>수정</b> 버튼으로 진입/청산/감정/복기를 채우면 됩니다.
         </div>
 
         <div class="j-row-3">
@@ -1755,12 +1840,18 @@
           <div class="img-preview-grid" id="imgPreviewGrid"></div>
         </div>
 
-        <button type="button" class="save-j-btn" id="saveJournalBtn">+ 매매일지 저장하기</button>
+        <div class="form-btn-row" id="journalBtnRow">
+          <button type="button" class="draft-j-btn" id="saveDraftJournalBtn">⚡ 뼈대 임시저장</button>
+          <button type="button" class="save-j-btn" id="saveJournalBtn">+ 매매일지 저장하기</button>
+        </div>
       </div>
 
       <div>
         <div class="j-list-header">
-          <strong style="font-size:15px;">기록된 매매일지 (<span id="jCount">0</span>건)</strong>
+          <div class="j-list-title-wrap">
+            <strong style="font-size:15px;">기록된 매매일지 (<span id="jCount">0</span>건)</strong>
+            <span class="draft-counter-pill" id="draftCounterPill" style="display:none;">임시저장 0건</span>
+          </div>
           <div class="j-filters">
             <select id="jFilterPeriod">
               <option value="ALL">전체 기간</option>
@@ -1789,6 +1880,7 @@
               <option value="ALL">전체 원칙여부</option>
               <option value="OK">원칙 준수만</option>
               <option value="VIOLATION">원칙 위반만</option>
+              <option value="DRAFT">⚡ 임시저장만 (복기대기)</option>
             </select>
           </div>
         </div>
@@ -2058,7 +2150,7 @@
   }
 
   /* ============================================================================
-     0-B. Firebase 실시간 양방향 동기화 엔진 (미전송 큐 보호 · 삭제 반영 · 자동 재연결)
+     0-B. Firebase 실시간 양방향 동기화 엔진
   ============================================================================ */
   let rtdb = null;
   let syncUserRef = null;
@@ -2068,7 +2160,6 @@
   const DEVICE_ID = localStorage.getItem("fb_device_id") || ("dev_" + Math.random().toString(36).slice(2, 10));
   localStorage.setItem("fb_device_id", DEVICE_ID);
 
-  // 미전송 큐를 localStorage에 영구 보관하여 앱 종료/재실행 시에도 유실 방지
   function loadSyncQueue() {
     try {
       const raw = JSON.parse(localStorage.getItem("fb_sync_queue") || "{}");
@@ -2276,12 +2367,10 @@
 
     isApplyingRemote = true;
     try {
-      // 1. 시드
       if (!syncQueue.dirtySeed && data.calcSeed !== undefined && Number(data.calcSeed) > 0) {
         syncSeed(data.calcSeed, null, true);
       }
 
-      // 2. 진입 전 체크리스트 (마지막 항목 삭제 시 Firebase에서 undefined로 오므로 빈 배열 반영)
       if (!syncQueue.dirtyRules) {
         const remoteRules = Array.isArray(data.preTradeRules) ? data.preTradeRules : [];
         preTradeRules = remoteRules;
@@ -2289,7 +2378,6 @@
         renderGatekeeper();
       }
 
-      // 3. 셋업 태그 (마지막 태그 삭제 시 빈 배열 반영)
       if (!syncQueue.dirtyTags) {
         const remoteTags = Array.isArray(data.setupTags) ? data.setupTags : [];
         setupTags = remoteTags;
@@ -2297,7 +2385,6 @@
         renderSetupTagOptions();
       }
 
-      // 4. 서킷브레이커 설정
       if (!syncQueue.dirtyKs && data.killSwitchConfig) {
         killSwitchConfig = data.killSwitchConfig;
         ksMaxLossInput.value = killSwitchConfig.maxLoss ?? 60;
@@ -2306,7 +2393,6 @@
         updateKillSwitch();
       }
 
-      // 5. 월별 매매기록 장부 (작성 중인 월은 보호하고 나머지 월은 즉시 동기화)
       const remoteLedger = data.ledgerStore || {};
       const allMonths = new Set([...Object.keys(ledgerStore), ...Object.keys(remoteLedger)]);
       allMonths.forEach(ym => {
@@ -2320,7 +2406,6 @@
       await dbPut("kv", ledgerStore, "ledgerStore");
       updateLedgerDomSafely();
 
-      // 6. 건별 매매일지 (마지막 일지 삭제 시 undefined -> 빈 배열 반영 + 로컬 미전송 일지 보호 병합)
       const remoteJournalsMap = data.journals || {};
       const mergedMap = {};
 
@@ -2330,7 +2415,6 @@
         }
       });
 
-      // 아직 클라우드로 전송되지 않은 로컬 일지 보존
       syncQueue.pendingJournalIds.forEach(id => {
         const localEntry = allJournals.find(j => j.id === id);
         if (localEntry) {
@@ -2343,6 +2427,11 @@
       for (const j of allJournals) {
         await dbPut("journals", j);
       }
+
+      if (editingJournalId !== null && !allJournals.some(j => j.id === editingJournalId)) {
+        resetJournalForm(false);
+      }
+
       updateKillSwitch();
       renderJournals();
 
@@ -2353,7 +2442,6 @@
       isApplyingRemote = false;
     }
 
-    // 병합 후 아직 전송 안 된 로컬 변경분이 남아있다면 즉시 클라우드로 전송
     if (hasPendingItems()) {
       flushPendingSync();
     } else if (syncUserRef && activeInFlightCount === 0) {
@@ -2429,7 +2517,6 @@
         if (val) {
           await applyCloudSnapshot(val);
         } else if (allJournals.length > 0 || Object.keys(ledgerStore).length > 0) {
-          // 클라우드가 완전히 비어 있는 최초 연결 시 로컬 데이터 자동 업로드
           const journalsMap = {};
           allJournals.forEach(j => { journalsMap[j.id] = j; });
           await syncUserRef.set({
@@ -2468,7 +2555,6 @@
     }
   }
 
-  // 모바일 화면 잠금 해제 및 탭 복귀 시 즉시 재연결 + 미전송 데이터 전송 + 최신화
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && syncUserRef && rtdb) {
       rtdb.goOnline();
@@ -2535,11 +2621,13 @@
       document.getElementById(`view-${tab.dataset.tab}`).classList.add("active");
 
       if (tab.dataset.tab === "journal") {
-        if (document.getElementById("jDate").dataset.auto !== "manual") {
-          document.getElementById("jDate").value = getLocalTodayStr();
-        }
-        if (document.getElementById("jTime").dataset.auto !== "manual") {
-          document.getElementById("jTime").value = getLocalTimeStr();
+        if (editingJournalId === null) {
+          if (document.getElementById("jDate").dataset.auto !== "manual") {
+            document.getElementById("jDate").value = getLocalTodayStr();
+          }
+          if (document.getElementById("jTime").dataset.auto !== "manual") {
+            document.getElementById("jTime").value = getLocalTimeStr();
+          }
         }
         updateKillSwitch();
       } else if (tab.dataset.tab === "analytics") {
@@ -2951,7 +3039,7 @@
   applyLayoutMode();
 
   /* ============================================================================
-     3. 탭 2: 월별 매매기록 장부 (디바운스 & 커서 보호 실시간 동기화)
+     3. 탭 2: 월별 매매기록 장부
   ============================================================================ */
   const monthInput = document.getElementById("monthInput");
   const ledgerBody = document.getElementById("ledgerBody");
@@ -2972,7 +3060,6 @@
     return new Date(y, m, 0).getDate();
   }
 
-  // 입력 중인 셀의 포커스를 유지하면서 다른 기기에서 온 장부 변경 사항을 즉시 반영
   function updateLedgerDomSafely() {
     const ym = monthInput.value || getLocalTodayStr().slice(0, 7);
     const mData = ledgerStore[ym] || { targetPct: 20, days: {} };
@@ -3226,12 +3313,13 @@
   });
 
   /* ============================================================================
-     4. 탭 3: 건별 매매일지 + 기능 2 (일일 손실 & 매매 횟수 서킷브레이커)
+     4. 탭 3: 건별 매매일지 + 임시저장/수정 + 서킷브레이커
   ============================================================================ */
   let currentImages = [];
   let allJournals = [];
   let setupTags = [];
   let killSwitchConfig = { maxLoss: 60, maxTrades: 3 };
+  let editingJournalId = null;
 
   const ksMaxLossInput = document.getElementById("ksMaxLossInput");
   const ksMaxTradesInput = document.getElementById("ksMaxTradesInput");
@@ -3308,11 +3396,18 @@
   const newTagBox = document.getElementById("newTagBox");
   const newTagInput = document.getElementById("newTagInput");
   const tagManagePanel = document.getElementById("tagManagePanel");
+  const journalFormCard = document.getElementById("journalFormCard");
+  const jFormHeading = document.getElementById("jFormHeading");
+  const cancelEditJournalBtn = document.getElementById("cancelEditJournalBtn");
+  const saveJournalBtn = document.getElementById("saveJournalBtn");
+  const saveDraftJournalBtn = document.getElementById("saveDraftJournalBtn");
+  const journalBtnRow = document.getElementById("journalBtnRow");
 
   jDateInput.value = getLocalTodayStr();
   jTimeInput.value = getLocalTimeStr();
 
   setInterval(() => {
+    if (editingJournalId !== null) return;
     const today = getLocalTodayStr();
     const nowTime = getLocalTimeStr();
     if (jDateInput.dataset.auto !== "manual" && jDateInput.value !== today) {
@@ -3419,6 +3514,7 @@
     if (!type || !REVIEW_META[type]) return;
     const existing = reviewBlocks.querySelector(`.rev-block[data-type="${type}"]`);
     if (existing) {
+      if (presetText) existing.querySelector("input").value = presetText;
       existing.querySelector("input").focus();
       return;
     }
@@ -3522,35 +3618,28 @@
     }
   });
 
-  document.getElementById("saveJournalBtn").addEventListener("click", async () => {
-    const selectedSetup = jSetupSelect.value === "__NEW__" ? "" : jSetupSelect.value;
+  function updateFormModeUI() {
+    if (editingJournalId !== null) {
+      journalFormCard.classList.add("editing-mode");
+      jFormHeading.textContent = "✏️ 매매일지 수정 / 복기 작성";
+      cancelEditJournalBtn.style.display = "inline-block";
+      journalBtnRow.classList.add("single-btn");
+      saveDraftJournalBtn.style.display = "none";
+      saveJournalBtn.textContent = "✅ 수정 완료 (정식 저장)";
+      saveJournalBtn.classList.add("update-mode");
+    } else {
+      journalFormCard.classList.remove("editing-mode");
+      jFormHeading.textContent = "매매일지 기록";
+      cancelEditJournalBtn.style.display = "none";
+      journalBtnRow.classList.remove("single-btn");
+      saveDraftJournalBtn.style.display = "block";
+      saveJournalBtn.textContent = "+ 매매일지 저장하기";
+      saveJournalBtn.classList.remove("update-mode");
+    }
+  }
 
-    const reviews = [];
-    reviewBlocks.querySelectorAll(".rev-block").forEach(block => {
-      const text = block.querySelector("input").value.trim();
-      if (text) reviews.push({ type: block.dataset.type, text });
-    });
-
-    const entry = {
-      id: Date.now() + Math.floor(Math.random() * 100),
-      date: jDateInput.value || getLocalTodayStr(),
-      time: jTimeInput.value || getLocalTimeStr(),
-      sym: document.getElementById("jSym").value,
-      side: document.getElementById("jSide").value,
-      pnl: parseFloat(document.getElementById("jPnl").value) || 0,
-      setup: selectedSetup,
-      rule: document.getElementById("jRule").value,
-      entryReason: document.getElementById("jEntryReason").value.trim(),
-      exitReason: document.getElementById("jExitReason").value.trim(),
-      lesson: document.getElementById("jLesson").value.trim(),
-      reviews: reviews,
-      images: currentImages.slice()
-    };
-
-    await dbPut("journals", entry);
-    allJournals.unshift(entry);
-    cloudPushJournal(entry);
-
+  function resetJournalForm(clearEditId = true) {
+    if (clearEditId) editingJournalId = null;
     jDateInput.value = getLocalTodayStr();
     jDateInput.dataset.auto = "";
     jTimeInput.value = getLocalTimeStr();
@@ -3559,14 +3648,127 @@
     document.getElementById("jEntryReason").value = "";
     document.getElementById("jExitReason").value = "";
     document.getElementById("jLesson").value = "";
+    document.getElementById("jRule").value = "준수 (O)";
     reviewBlocks.innerHTML = "";
     currentImages = [];
     jImgInput.value = "";
     renderCurrentImagePreviews();
+    updateFormModeUI();
+  }
+
+  function startEditJournal(id) {
+    const entry = allJournals.find(item => item.id === id);
+    if (!entry) return;
+
+    editingJournalId = entry.id;
+    jDateInput.value = entry.date || getLocalTodayStr();
+    jDateInput.dataset.auto = "manual";
+    jTimeInput.value = entry.time || getLocalTimeStr();
+    jTimeInput.dataset.auto = "manual";
+    document.getElementById("jSym").value = entry.sym || "XAUUSD";
+    document.getElementById("jSide").value = entry.side || "BUY";
+    document.getElementById("jPnl").value = entry.pnl !== undefined ? entry.pnl : "";
+
+    if (entry.setup && !setupTags.includes(entry.setup)) {
+      setupTags.push(entry.setup);
+      dbPut("kv", setupTags, "setupTags");
+      cloudPush("setupTags", setupTags);
+    }
+    renderSetupTagOptions(entry.setup || "");
+
+    document.getElementById("jRule").value = entry.rule || "준수 (O)";
+    document.getElementById("jEntryReason").value = entry.entryReason || "";
+    document.getElementById("jExitReason").value = entry.exitReason || "";
+    document.getElementById("jLesson").value = entry.lesson || "";
+
+    reviewBlocks.innerHTML = "";
+    if (Array.isArray(entry.reviews)) {
+      entry.reviews.forEach(r => addReviewBlock(r.type, r.text || ""));
+    }
+
+    currentImages = Array.isArray(entry.images) && entry.images.length > 0
+      ? entry.images.slice()
+      : (entry.image ? [entry.image] : []);
+    renderCurrentImagePreviews();
+
+    updateFormModeUI();
+    journalFormCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  cancelEditJournalBtn.addEventListener("click", () => {
+    resetJournalForm(true);
+  });
+
+  async function commitJournalEntry(asDraft) {
+    const selectedSetup = jSetupSelect.value === "__NEW__" ? "" : jSetupSelect.value;
+
+    const reviews = [];
+    reviewBlocks.querySelectorAll(".rev-block").forEach(block => {
+      const text = block.querySelector("input").value.trim();
+      if (text) reviews.push({ type: block.dataset.type, text });
+    });
+
+    const entryReason = document.getElementById("jEntryReason").value.trim();
+    const exitReason = document.getElementById("jExitReason").value.trim();
+    const lesson = document.getElementById("jLesson").value.trim();
+    const imgs = currentImages.slice();
+
+    // 수정 저장 시에는 상세 복기나 메모가 채워지면 임시저장 플래그 해제 (원할 경우 임시저장 유지 가능)
+    const isDraft = asDraft;
+
+    if (editingJournalId !== null) {
+      const existing = allJournals.find(item => item.id === editingJournalId);
+      const updatedEntry = {
+        id: editingJournalId,
+        date: jDateInput.value || existing?.date || getLocalTodayStr(),
+        time: jTimeInput.value || existing?.time || getLocalTimeStr(),
+        sym: document.getElementById("jSym").value,
+        side: document.getElementById("jSide").value,
+        pnl: parseFloat(document.getElementById("jPnl").value) || 0,
+        setup: selectedSetup,
+        rule: document.getElementById("jRule").value,
+        entryReason,
+        exitReason,
+        lesson,
+        reviews,
+        images: imgs,
+        isDraft: false
+      };
+
+      await dbPut("journals", updatedEntry);
+      allJournals = allJournals.map(item => item.id === editingJournalId ? updatedEntry : item);
+      cloudPushJournal(updatedEntry);
+      resetJournalForm(true);
+    } else {
+      const entry = {
+        id: Date.now() + Math.floor(Math.random() * 100),
+        date: jDateInput.value || getLocalTodayStr(),
+        time: jTimeInput.value || getLocalTimeStr(),
+        sym: document.getElementById("jSym").value,
+        side: document.getElementById("jSide").value,
+        pnl: parseFloat(document.getElementById("jPnl").value) || 0,
+        setup: selectedSetup,
+        rule: document.getElementById("jRule").value,
+        entryReason,
+        exitReason,
+        lesson,
+        reviews,
+        images: imgs,
+        isDraft
+      };
+
+      await dbPut("journals", entry);
+      allJournals.unshift(entry);
+      cloudPushJournal(entry);
+      resetJournalForm(true);
+    }
 
     updateKillSwitch();
     renderJournals();
-  });
+  }
+
+  saveDraftJournalBtn.addEventListener("click", () => commitJournalEntry(true));
+  saveJournalBtn.addEventListener("click", () => commitJournalEntry(false));
 
   function openChartGallery(images, titleText) {
     const modal = document.getElementById("galleryModal");
@@ -3607,6 +3809,15 @@
     sevenDaysAgo.setDate(todayDate.getDate() - 6);
     const thisMonthPrefix = todayStr.slice(0, 7);
 
+    const draftCountAll = allJournals.filter(j => Boolean(j.isDraft)).length;
+    const draftPill = document.getElementById("draftCounterPill");
+    if (draftCountAll > 0) {
+      draftPill.style.display = "inline-block";
+      draftPill.textContent = `⚡ 임시저장 ${draftCountAll}건`;
+    } else {
+      draftPill.style.display = "none";
+    }
+
     const filtered = allJournals
       .slice()
       .sort((a, b) => b.id - a.id)
@@ -3626,6 +3837,7 @@
 
         if (fRule === "OK" && !j.rule.startsWith("준수")) return false;
         if (fRule === "VIOLATION" && j.rule.startsWith("준수")) return false;
+        if (fRule === "DRAFT" && !j.isDraft) return false;
         return true;
       });
 
@@ -3652,6 +3864,20 @@
         </div>
       ` : "";
 
+      const hasAnyText = Boolean(j.entryReason || j.exitReason || j.lesson || revs.length > 0);
+      const notesHtml = hasAnyText ? `
+        <div class="j-notes">
+          ${j.entryReason ? `<div><strong>[진입근거]</strong>${escapeHtml(j.entryReason)}</div>` : ""}
+          ${j.exitReason ? `<div><strong>[청산/감정]</strong>${escapeHtml(j.exitReason)}</div>` : ""}
+          ${j.lesson ? `<div><strong>[주의/개선]</strong><span style="color:#93c5fd;">${escapeHtml(j.lesson)}</span></div>` : ""}
+          ${revHtml}
+        </div>
+      ` : `
+        <div class="j-notes">
+          <div class="j-empty-note">뼈대만 임시저장된 거래입니다. 우측 상단 [수정]을 눌러 당시 상황·감정·복기를 적어보세요.</div>
+        </div>
+      `;
+
       const chartHtml = imgs.length > 0 ? `
         <div class="j-chart-box">
           <img class="j-chart-thumb" src="${imgs[0]}" title="클릭하여 크게 보기">
@@ -3660,7 +3886,7 @@
       ` : "";
 
       const card = document.createElement("div");
-      card.className = "j-item";
+      card.className = "j-item" + (j.isDraft ? " is-draft" : "");
       card.innerHTML = `
         <div class="j-item-top">
           <div class="j-badges">
@@ -3670,23 +3896,27 @@
             <span class="badge ${j.side === "BUY" ? "buy" : "sell"}">${j.side}</span>
             <span class="badge ${isOk ? "rule-ok" : "rule-no"}">${j.rule}</span>
             ${j.setup ? `<span class="badge setup">${escapeHtml(j.setup)}</span>` : ""}
+            ${j.isDraft ? `<span class="badge draft-badge">⚡ 임시저장</span>` : ""}
           </div>
-          <div style="display:flex; align-items:center; gap:10px;">
+          <div class="j-item-right">
             <strong class="${pnlCls}" style="font-size:15px;">${pnlSign}$${Number(j.pnl || 0).toFixed(2)}</strong>
+            <button type="button" class="edit-j-btn" data-id="${j.id}">수정</button>
             <button type="button" class="reset-btn del-j-btn" data-id="${j.id}">삭제</button>
           </div>
         </div>
         <div class="j-item-body ${imgs.length > 0 ? "" : "no-img"}">
-          <div class="j-notes">
-            ${j.entryReason ? `<div><strong>[진입근거]</strong>${escapeHtml(j.entryReason)}</div>` : ""}
-            ${j.exitReason ? `<div><strong>[청산/감정]</strong>${escapeHtml(j.exitReason)}</div>` : ""}
-            ${j.lesson ? `<div><strong>[주의/개선]</strong><span style="color:#93c5fd;">${escapeHtml(j.lesson)}</span></div>` : ""}
-            ${revHtml}
-          </div>
+          ${notesHtml}
           ${chartHtml}
         </div>
       `;
       listEl.appendChild(card);
+    });
+
+    listEl.querySelectorAll(".edit-j-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = Number(btn.dataset.id);
+        startEditJournal(id);
+      });
     });
 
     listEl.querySelectorAll(".del-j-btn").forEach(btn => {
@@ -3694,6 +3924,9 @@
         const id = Number(btn.dataset.id);
         await dbDelete("journals", id);
         allJournals = allJournals.filter(item => item.id !== id);
+        if (editingJournalId === id) {
+          resetJournalForm(true);
+        }
         cloudRemoveJournal(id);
         updateKillSwitch();
         renderJournals();
@@ -3721,7 +3954,7 @@
   }
 
   /* ============================================================================
-     5. 탭 4: 성과·통계 분석 렌더링 엔진 (기능 3, 4, 5 + 서머타임 자동 반영)
+     5. 탭 4: 성과·통계 분석 렌더링 엔진
   ============================================================================ */
   function renderAnalytics() {
     renderEquityAndMddChart();
@@ -4188,6 +4421,7 @@
           saveSyncQueue();
         }
 
+        resetJournalForm(true);
         renderGatekeeper();
         renderSetupTagOptions();
         renderLedger();
@@ -4222,7 +4456,8 @@
         return `${tag}:${r.text}`;
       }).join(" / ") : "";
       const timeStr = j.time ? ` ${j.time}` : "";
-      lines.push(`- [${j.date}${timeStr}] ${j.sym} ${j.side} | 손익:$${j.pnl} | 원칙:${j.rule} | 셋업:${j.setup || "-"} | 진입:${j.entryReason} | 청산:${j.exitReason} | 교훈:${j.lesson}${revs ? ` | 피드백(${revs})` : ""}`);
+      const draftTag = j.isDraft ? " [임시저장]" : "";
+      lines.push(`- [${j.date}${timeStr}] ${j.sym} ${j.side}${draftTag} | 손익:$${j.pnl} | 원칙:${j.rule} | 셋업:${j.setup || "-"} | 진입:${j.entryReason} | 청산:${j.exitReason} | 교훈:${j.lesson}${revs ? ` | 피드백(${revs})` : ""}`);
     });
 
     await navigator.clipboard.writeText(lines.join("\n"));
@@ -4230,7 +4465,7 @@
   });
 
   /* ============================================================================
-     7. 앱 부팅 (IndexedDB 로드 후 저장된 클라우드 동기화 자동 연결)
+     7. 앱 부팅
   ============================================================================ */
   (async function boot() {
     await initDB();
