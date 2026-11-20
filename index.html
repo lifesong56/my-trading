@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>트레이딩 올인원 대시보드 (계산기 · 매매기록 · 매매일지 · 성과분석)</title>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -20,7 +22,7 @@
     background: #16191e;
     border-bottom: 1px solid #2c323b;
     padding: 0 16px;
-    height: 46px;
+    min-height: 46px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -28,23 +30,29 @@
     position: sticky;
     top: 0;
     z-index: 100;
+    gap: 8px;
   }
   .nav-tabs {
     display: flex;
     gap: 6px;
-    height: 100%;
     align-items: center;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 4px 0;
   }
+  .nav-tabs::-webkit-scrollbar { display: none; }
   .nav-tab {
     background: transparent;
     border: 1px solid transparent;
     color: #8b949e;
     font-size: 13px;
     font-weight: 700;
-    padding: 6px 14px;
+    padding: 6px 12px;
     border-radius: 7px;
     cursor: pointer;
     transition: 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
   .nav-tab:hover { color: #e9ecef; background: #1f242c; }
   .nav-tab.active {
@@ -56,6 +64,20 @@
     display: flex;
     gap: 6px;
     align-items: center;
+    flex-wrap: wrap;
+    padding: 4px 0;
+  }
+  @media (max-width: 860px) {
+    .global-header {
+      flex-direction: column;
+      align-items: stretch;
+      padding: 6px 10px;
+    }
+    .global-tools {
+      justify-content: flex-end;
+      border-top: 1px solid #22262e;
+      padding-top: 6px;
+    }
   }
   .tool-btn {
     background: #21262d;
@@ -63,10 +85,11 @@
     color: #c9d1d9;
     font-size: 11px;
     font-weight: 600;
-    padding: 5px 10px;
+    padding: 5px 9px;
     border-radius: 6px;
     cursor: pointer;
     transition: 0.15s;
+    white-space: nowrap;
   }
   .tool-btn:hover { background: #30363d; color: #ffffff; }
   .tool-btn.ai-btn {
@@ -75,6 +98,16 @@
     color: #4ade80;
   }
   .tool-btn.ai-btn:hover { background: #1b4732; }
+  .tool-btn.sync-btn {
+    background: #1d2d44;
+    border-color: #3b82f6;
+    color: #93c5fd;
+  }
+  .tool-btn.sync-btn.connected {
+    background: #143626;
+    border-color: #2ea043;
+    color: #4ade80;
+  }
 
   .tab-view { display: none; flex: 1; }
   .tab-view.active { display: flex; flex-direction: column; }
@@ -789,6 +822,7 @@
   }
   @media (max-width: 900px) {
     .journal-grid { grid-template-columns: 1fr; }
+    .j-form-card { position: static !important; }
   }
   .j-form-card {
     background: #1b1f24;
@@ -1187,7 +1221,6 @@
     color: #f8f9fa;
   }
 
-  /* 기능 5: SVG 잔고 곡선 & MDD 차트 */
   .chart-container {
     position: relative;
     background: #14171c;
@@ -1226,7 +1259,6 @@
     box-shadow: 0 4px 14px rgba(0,0,0,0.6);
   }
 
-  /* 기능 3: 원칙 준수 vs 위반 대조 & 셋업 태그 통계 테이블 */
   .rule-compare-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1296,7 +1328,6 @@
     background: #4ade80;
   }
 
-  /* 기능 4: 시간대(세션)별 성과 & 24시간 히트맵 */
   .session-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -1343,6 +1374,83 @@
   .hm-hour { font-size: 11px; font-weight: 700; color: #adb5bd; display: block; margin-bottom: 3px; }
   .hm-pnl  { font-size: 12px; font-weight: 800; display: block; }
   .hm-cnt  { font-size: 10px; color: #8b949e; display: block; margin-top: 2px; }
+
+  /* ================= 실시간 클라우드 동기화 모달 ================= */
+  .sync-modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.82);
+    z-index: 980;
+    justify-content: center;
+    align-items: center;
+    padding: 16px;
+  }
+  .sync-modal-backdrop.open { display: flex; }
+  .sync-modal-box {
+    background: #1b1f24;
+    border: 1px solid #3b82f6;
+    border-radius: 14px;
+    width: 100%;
+    max-width: 480px;
+    padding: 20px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.75);
+  }
+  .sync-modal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .sync-modal-head h3 { font-size: 16px; font-weight: 800; color: #f8f9fa; }
+  .sync-help-box {
+    background: #14171c;
+    border: 1px solid #2b313a;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: #adb5bd;
+    line-height: 1.55;
+    margin-bottom: 14px;
+  }
+  .sync-btn-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .sync-primary-btn {
+    background: #1d3557;
+    border: 1px solid #3b82f6;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 800;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .sync-primary-btn:hover { background: #254673; }
+  .sync-upload-btn {
+    background: #143626;
+    border: 1px solid #2ea043;
+    color: #4ade80;
+    font-size: 13px;
+    font-weight: 800;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .sync-upload-btn:hover { background: #1b4732; }
+  .sync-disconnect-btn {
+    background: #2b181a;
+    border: 1px solid #7f1d1d;
+    color: #fca5a5;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
 
   .gallery-modal {
     display: none;
@@ -1406,7 +1514,7 @@
 </head>
 <body>
 
-<!-- 상단 공통 탭 및 백업/복기 바 -->
+<!-- 상단 공통 탭 및 실시간 동기화/백업 바 -->
 <header class="global-header">
   <div class="nav-tabs">
     <button type="button" class="nav-tab active" data-tab="calc">1. 랏수·평단 계산기</button>
@@ -1415,6 +1523,7 @@
     <button type="button" class="nav-tab" data-tab="analytics">4. 성과·통계 분석</button>
   </div>
   <div class="global-tools">
+    <button type="button" class="tool-btn sync-btn" id="openSyncModalBtn">☁️ 동기화 설정</button>
     <button type="button" class="tool-btn ai-btn" id="copyAiReportBtn">📋 AI 복기용 복사</button>
     <button type="button" class="tool-btn" id="exportBackupBtn">💾 백업 저장</button>
     <button type="button" class="tool-btn" id="importBackupBtn">📂 백업 불러오기</button>
@@ -1773,6 +1882,33 @@
   </div>
 </section>
 
+<!-- 실시간 클라우드 동기화 설정 모달 -->
+<div class="sync-modal-backdrop" id="syncModal">
+  <div class="sync-modal-box">
+    <div class="sync-modal-head">
+      <h3>☁️ PC ↔ 스마트폰 실시간 클라우드 동기화</h3>
+      <button type="button" class="reset-btn" id="closeSyncModalBtn">✕ 닫기</button>
+    </div>
+    <div class="sync-help-box">
+      Firebase Realtime Database 주소와 본인이 정한 비밀 암호를 입력하면 PC와 스마트폰이 실시간으로 자동 동기화됩니다. (비밀 암호는 현재 기기 브라우저에만 저장되며 외부에 공개되지 않습니다.)
+    </div>
+    <div class="j-field">
+      <label>Firebase Realtime Database URL</label>
+      <input type="text" id="syncDbUrlInput" placeholder="예: https://my-trading-xxxxx-default-rtdb.firebaseio.com">
+    </div>
+    <div class="j-field">
+      <label>나만의 비밀 동기화 암호 (PC와 스마트폰에 동일하게 입력)</label>
+      <input type="text" id="syncSecretInput" placeholder="예: lifesong2026">
+    </div>
+    <div id="syncStatusMsg" style="font-size:12px; color:#93c5fd; margin-top:4px;"></div>
+    <div class="sync-btn-group">
+      <button type="button" class="sync-primary-btn" id="connectPullBtn">☁️ 연결하기 (클라우드 기록 불러오기)</button>
+      <button type="button" class="sync-upload-btn" id="connectPushBtn">⬆️ 현재 기기 기록을 클라우드로 덮어쓰기 (최초 1회 업로드)</button>
+      <button type="button" class="sync-disconnect-btn" id="disconnectSyncBtn" style="display:none;">동기화 연결 해제</button>
+    </div>
+  </div>
+</div>
+
 <!-- 다중 차트 갤러리 모달 -->
 <div class="gallery-modal" id="galleryModal">
   <div class="gallery-modal-head">
@@ -1810,20 +1946,17 @@
     return `${hh}:${mm}`;
   }
 
-  // N번째 일요일 날짜(일) 구하기 (month: 1~12)
   function getNthSunday(year, month, n) {
-    const firstDay = new Date(year, month - 1, 1).getDay(); // 0=일요일
+    const firstDay = new Date(year, month - 1, 1).getDay();
     const firstSunday = firstDay === 0 ? 1 : 8 - firstDay;
     return firstSunday + (n - 1) * 7;
   }
 
-  // 마지막 일요일 날짜(일) 구하기 (month: 1~12)
   function getLastSunday(year, month) {
     const lastDate = new Date(year, month, 0);
     return lastDate.getDate() - lastDate.getDay();
   }
 
-  // 미국 서머타임 여부 (3월 둘째 주 일요일 ~ 11월 첫째 주 일요일 전날) -> MT4 서버·미장 기준
   function isUsDstDate(dateStr) {
     if (!dateStr || dateStr.length < 10) return false;
     const [y, m, d] = dateStr.split("-").map(Number);
@@ -1836,7 +1969,6 @@
     return cur >= start && cur < end;
   }
 
-  // 유럽(런던) 서머타임 여부 (3월 마지막 주 일요일 ~ 10월 마지막 주 일요일 전날)
   function isEuDstDate(dateStr) {
     if (!dateStr || dateStr.length < 10) return false;
     const [y, m, d] = dateStr.split("-").map(Number);
@@ -1904,6 +2036,14 @@
     });
   }
 
+  function dbClear(store) {
+    return new Promise(resolve => {
+      const tx = db.transaction(store, "readwrite");
+      tx.objectStore(store).clear();
+      tx.oncomplete = () => resolve(true);
+    });
+  }
+
   function dbGetAll(store) {
     return new Promise(resolve => {
       const tx = db.transaction(store, "readonly");
@@ -1911,6 +2051,206 @@
       req.onsuccess = () => resolve(req.result || []);
     });
   }
+
+  /* ============================================================================
+     0-B. Firebase 실시간 양방향 동기화 엔진
+  ============================================================================ */
+  let rtdb = null;
+  let syncUserRef = null;
+  let isApplyingRemote = false;
+
+  function sanitizeFirebasePath(str) {
+    return String(str || "").trim().replace(/[.#$\[\]\/]/g, "_");
+  }
+
+  function updateSyncBadge(connected, labelText) {
+    const btn = document.getElementById("openSyncModalBtn");
+    const disBtn = document.getElementById("disconnectSyncBtn");
+    if (connected) {
+      btn.classList.add("connected");
+      btn.textContent = labelText || "☁️ 실시간 동기화 중";
+      disBtn.style.display = "block";
+    } else {
+      btn.classList.remove("connected");
+      btn.textContent = "☁️ 동기화 설정";
+      disBtn.style.display = "none";
+    }
+  }
+
+  function cloudPush(subPath, data) {
+    if (!syncUserRef || isApplyingRemote) return;
+    syncUserRef.child(subPath).set(data).catch(err => {
+      console.error("Cloud sync push error:", err);
+      updateSyncBadge(false);
+    });
+  }
+
+  function cloudRemove(subPath) {
+    if (!syncUserRef || isApplyingRemote) return;
+    syncUserRef.child(subPath).remove().catch(err => console.error(err));
+  }
+
+  async function applyCloudSnapshot(data) {
+    if (!data) return;
+    isApplyingRemote = true;
+    try {
+      if (data.calcSeed !== undefined && Number(data.calcSeed) > 0) {
+        syncSeed(data.calcSeed, null, true);
+      }
+      if (Array.isArray(data.preTradeRules)) {
+        preTradeRules = data.preTradeRules;
+        await dbPut("kv", preTradeRules, "preTradeRules");
+        renderGatekeeper();
+      }
+      if (Array.isArray(data.setupTags)) {
+        setupTags = data.setupTags;
+        await dbPut("kv", setupTags, "setupTags");
+        renderSetupTagOptions();
+      }
+      if (data.killSwitchConfig) {
+        killSwitchConfig = data.killSwitchConfig;
+        ksMaxLossInput.value = killSwitchConfig.maxLoss ?? 60;
+        ksMaxTradesInput.value = killSwitchConfig.maxTrades ?? 3;
+        await dbPut("kv", killSwitchConfig, "killSwitchConfig");
+        updateKillSwitch();
+      }
+      if (data.ledgerStore) {
+        ledgerStore = data.ledgerStore;
+        await dbPut("kv", ledgerStore, "ledgerStore");
+        if (!ledgerBody.contains(document.activeElement)) {
+          renderLedger();
+        }
+      }
+      if (data.journals !== undefined) {
+        const jObj = data.journals || {};
+        allJournals = Object.values(jObj);
+        await dbClear("journals");
+        for (const j of allJournals) {
+          await dbPut("journals", j);
+        }
+        updateKillSwitch();
+        renderJournals();
+      }
+      if (document.getElementById("view-analytics").classList.contains("active")) {
+        renderAnalytics();
+      }
+    } finally {
+      isApplyingRemote = false;
+    }
+  }
+
+  function startFirebaseSync(dbUrl, secretKey, mode = "PULL") {
+    const cleanUrl = String(dbUrl || "").trim().replace(/\/+$/, "");
+    const safeKey = sanitizeFirebasePath(secretKey);
+    if (!cleanUrl.startsWith("https://") || !safeKey) {
+      alert("올바른 Firebase Database URL(https://...)과 비밀 암호를 입력해 주세요.");
+      return;
+    }
+
+    if (syncUserRef) {
+      syncUserRef.off();
+      syncUserRef = null;
+    }
+
+    try {
+      if (!firebase.apps.length) {
+        firebase.initializeApp({ databaseURL: cleanUrl });
+      } else if (firebase.app().options.databaseURL !== cleanUrl) {
+        firebase.app().delete().then(() => {
+          firebase.initializeApp({ databaseURL: cleanUrl });
+          attachSyncListener(cleanUrl, safeKey, secretKey, mode);
+        });
+        return;
+      }
+      attachSyncListener(cleanUrl, safeKey, secretKey, mode);
+    } catch (e) {
+      alert("Firebase 연결 오류: " + e.message);
+    }
+  }
+
+  async function attachSyncListener(cleanUrl, safeKey, rawSecret, mode) {
+    rtdb = firebase.database();
+    syncUserRef = rtdb.ref(`users/${safeKey}`);
+    const statusMsg = document.getElementById("syncStatusMsg");
+    statusMsg.textContent = "클라우드 서버에 연결 중...";
+
+    try {
+      if (mode === "PUSH") {
+        const journalsMap = {};
+        allJournals.forEach(j => { journalsMap[j.id] = j; });
+        await syncUserRef.set({
+          calcSeed: globalSeed,
+          preTradeRules,
+          killSwitchConfig,
+          setupTags,
+          ledgerStore,
+          journals: journalsMap,
+          updatedAt: Date.now()
+        });
+      } else {
+        const snap = await syncUserRef.once("value");
+        const val = snap.val();
+        if (val) {
+          await applyCloudSnapshot(val);
+        }
+      }
+
+      localStorage.setItem("fb_sync_url", cleanUrl);
+      localStorage.setItem("fb_sync_secret", rawSecret);
+      updateSyncBadge(true, "☁️ 실시간 동기화 중");
+      statusMsg.textContent = "✅ 실시간 동기화가 활성화되었습니다!";
+
+      syncUserRef.on("value", async snapshot => {
+        const remoteData = snapshot.val();
+        if (remoteData) {
+          await applyCloudSnapshot(remoteData);
+        }
+      });
+
+      setTimeout(() => {
+        document.getElementById("syncModal").classList.remove("open");
+      }, 600);
+    } catch (err) {
+      updateSyncBadge(false);
+      statusMsg.textContent = "❌ 연결 실패: Firebase 규칙(Rules) 또는 URL을 확인하세요.";
+      alert("클라우드 동기화 권한 오류: Firebase 콘솔의 Realtime Database > 규칙(Rules) 설정을 확인해 주세요.\n(" + err.message + ")");
+    }
+  }
+
+  document.getElementById("openSyncModalBtn").addEventListener("click", () => {
+    document.getElementById("syncDbUrlInput").value = localStorage.getItem("fb_sync_url") || "";
+    document.getElementById("syncSecretInput").value = localStorage.getItem("fb_sync_secret") || "";
+    document.getElementById("syncStatusMsg").textContent = syncUserRef ? "현재 실시간 동기화가 연결되어 있습니다." : "";
+    document.getElementById("syncModal").classList.add("open");
+  });
+  document.getElementById("closeSyncModalBtn").addEventListener("click", () => {
+    document.getElementById("syncModal").classList.remove("open");
+  });
+  document.getElementById("connectPullBtn").addEventListener("click", () => {
+    startFirebaseSync(
+      document.getElementById("syncDbUrlInput").value,
+      document.getElementById("syncSecretInput").value,
+      "PULL"
+    );
+  });
+  document.getElementById("connectPushBtn").addEventListener("click", () => {
+    if (!confirm("현재 기기의 체크리스트·장부·매매일지로 클라우드 데이터를 덮어쓰시겠습니까?")) return;
+    startFirebaseSync(
+      document.getElementById("syncDbUrlInput").value,
+      document.getElementById("syncSecretInput").value,
+      "PUSH"
+    );
+  });
+  document.getElementById("disconnectSyncBtn").addEventListener("click", () => {
+    if (syncUserRef) {
+      syncUserRef.off();
+      syncUserRef = null;
+    }
+    localStorage.removeItem("fb_sync_url");
+    localStorage.removeItem("fb_sync_secret");
+    updateSyncBadge(false);
+    document.getElementById("syncStatusMsg").textContent = "동기화 연결이 해제되었습니다.";
+  });
 
   /* ============================================================================
      1. 상단 탭 전환 로직
@@ -2007,6 +2347,7 @@
           const idx = Number(item.dataset.gkIdx);
           preTradeRules[idx].checked = !preTradeRules[idx].checked;
           await dbPut("kv", preTradeRules, "preTradeRules");
+          cloudPush("preTradeRules", preTradeRules);
           renderGatekeeper();
         });
       });
@@ -2017,6 +2358,7 @@
           const idx = Number(btn.dataset.gkDel);
           preTradeRules.splice(idx, 1);
           await dbPut("kv", preTradeRules, "preTradeRules");
+          cloudPush("preTradeRules", preTradeRules);
           renderGatekeeper();
         });
       });
@@ -2024,6 +2366,7 @@
       root.querySelector(".gk-reset-btn").addEventListener("click", async () => {
         preTradeRules.forEach(r => r.checked = false);
         await dbPut("kv", preTradeRules, "preTradeRules");
+        cloudPush("preTradeRules", preTradeRules);
         renderGatekeeper();
       });
 
@@ -2039,6 +2382,7 @@
         if (!val) return;
         preTradeRules.push({ id: Date.now(), text: val, checked: false });
         await dbPut("kv", preTradeRules, "preTradeRules");
+        cloudPush("preTradeRules", preTradeRules);
         renderGatekeeper();
       };
       addBtn.addEventListener("click", doAdd);
@@ -2053,7 +2397,7 @@
   });
 
   /* ============================================================================
-     2. 탭 1: 포지션 랏수 & 평단가 계산기 (기존 로직 100% 유지)
+     2. 탭 1: 포지션 랏수 & 평단가 계산기
   ============================================================================ */
   const SPECS = {
     XAU:   { label: "XAU (좌상)",   baseLot1k: 0.01, usdPerPtAtBase: 1.0,  usdPerPtPerLot: 100.0, rule: "1pt = $1" },
@@ -2258,9 +2602,10 @@
     }
   }
 
-  function syncSeed(newSeed, sourceEl) {
+  function syncSeed(newSeed, sourceEl, skipCloud = false) {
     globalSeed = parseFloat(newSeed) || 0;
     localStorage.setItem("calc_seed", globalSeed);
+    if (!skipCloud && globalSeed > 0) cloudPush("calcSeed", globalSeed);
     if (sourceEl !== globalSeedInput) globalSeedInput.value = newSeed;
     document.querySelectorAll(".seed-input").forEach(el => {
       if (el !== sourceEl) el.value = newSeed;
@@ -2326,11 +2671,11 @@
     });
   });
 
-  syncSeed(globalSeed, null);
+  syncSeed(globalSeed, null, true);
   applyLayoutMode();
 
   /* ============================================================================
-     3. 탭 2: 월별 매매기록 장부 (기존 로직 100% 유지)
+     3. 탭 2: 월별 매매기록 장부
   ============================================================================ */
   const monthInput = document.getElementById("monthInput");
   const ledgerBody = document.getElementById("ledgerBody");
@@ -2354,6 +2699,7 @@
     const ym = monthInput.value || getLocalTodayStr().slice(0, 7);
     if (!ledgerStore[ym]) ledgerStore[ym] = { targetPct: 20, days: {} };
     const mData = ledgerStore[ym];
+    if (!mData.days) mData.days = {};
     monthTargetPctInput.value = mData.targetPct ?? 20;
 
     const totalDays = getDaysInMonth(ym);
@@ -2395,10 +2741,10 @@
     }
 
     bindLedgerEvents();
-    recalcLedger();
+    recalcLedger(true);
   }
 
-  function recalcLedger() {
+  function recalcLedger(skipCloud = false) {
     const ym = monthInput.value || getLocalTodayStr().slice(0, 7);
     const mData = ledgerStore[ym];
     const targetPct = parseFloat(monthTargetPctInput.value) || 0;
@@ -2494,16 +2840,17 @@
     document.getElementById("footGoalDiff").textContent = `목표 ${targetPct}% 대비 ${diff >= 0 ? "+" : ""}${diff.toFixed(2)}%`;
 
     dbPut("kv", ledgerStore, "ledgerStore");
+    if (!skipCloud) cloudPush(`ledgerStore/${ym}`, ledgerStore[ym]);
   }
 
   function bindLedgerEvents() {
     ledgerBody.querySelectorAll("input").forEach(inp => {
-      inp.addEventListener("input", recalcLedger);
+      inp.addEventListener("input", () => recalcLedger(false));
       if (inp.classList.contains("l-start")) {
         inp.addEventListener("focus", () => {
           if (!inp.value && inp.placeholder && inp.placeholder !== "시작") {
             inp.value = inp.placeholder;
-            recalcLedger();
+            recalcLedger(false);
           }
         });
       }
@@ -2520,7 +2867,7 @@
         tr.dataset.io = parsed === 0 ? "" : String(parsed);
         btn.textContent = parsed !== 0 ? `입출 ${parsed > 0 ? "+" : ""}${parsed.toLocaleString()}` : "+입출금";
         btn.className = parsed !== 0 ? "io-badge-btn has-io" : "io-badge-btn";
-        recalcLedger();
+        recalcLedger(false);
       });
     });
 
@@ -2531,13 +2878,13 @@
         btn.dataset.state = next;
         btn.textContent = next === "OK" ? "무사고" : (next === "FAIL" ? "위반" : "-");
         btn.className = "safe-toggle " + (next === "OK" ? "ok" : (next === "FAIL" ? "fail" : ""));
-        recalcLedger();
+        recalcLedger(false);
       });
     });
   }
 
   monthInput.addEventListener("change", renderLedger);
-  monthTargetPctInput.addEventListener("input", recalcLedger);
+  monthTargetPctInput.addEventListener("input", () => recalcLedger(false));
   document.getElementById("prevMonthBtn").addEventListener("click", () => {
     monthInput.value = shiftMonth(monthInput.value || getLocalTodayStr().slice(0, 7), -1);
     renderLedger();
@@ -2616,10 +2963,12 @@
   ksMaxLossInput.addEventListener("input", () => {
     updateKillSwitch();
     dbPut("kv", killSwitchConfig, "killSwitchConfig");
+    cloudPush("killSwitchConfig", killSwitchConfig);
   });
   ksMaxTradesInput.addEventListener("input", () => {
     updateKillSwitch();
     dbPut("kv", killSwitchConfig, "killSwitchConfig");
+    cloudPush("killSwitchConfig", killSwitchConfig);
   });
 
   const jDateInput = document.getElementById("jDate");
@@ -2689,6 +3038,7 @@
         const target = btn.dataset.delTag;
         setupTags = setupTags.filter(item => item !== target);
         await dbPut("kv", setupTags, "setupTags");
+        cloudPush("setupTags", setupTags);
         renderSetupTagOptions("");
       });
     });
@@ -2715,6 +3065,7 @@
     if (!setupTags.includes(raw)) {
       setupTags.push(raw);
       await dbPut("kv", setupTags, "setupTags");
+      cloudPush("setupTags", setupTags);
     }
     newTagBox.classList.remove("open");
     renderSetupTagOptions(raw);
@@ -2868,6 +3219,7 @@
 
     await dbPut("journals", entry);
     allJournals.unshift(entry);
+    cloudPush(`journals/${entry.id}`, entry);
 
     jDateInput.value = getLocalTodayStr();
     jDateInput.dataset.auto = "";
@@ -2990,7 +3342,7 @@
             ${j.setup ? `<span class="badge setup">${escapeHtml(j.setup)}</span>` : ""}
           </div>
           <div style="display:flex; align-items:center; gap:10px;">
-            <strong class="${pnlCls}" style="font-size:15px;">${pnlSign}$${j.pnl.toFixed(2)}</strong>
+            <strong class="${pnlCls}" style="font-size:15px;">${pnlSign}$${Number(j.pnl || 0).toFixed(2)}</strong>
             <button type="button" class="reset-btn del-j-btn" data-id="${j.id}">삭제</button>
           </div>
         </div>
@@ -3012,6 +3364,7 @@
         const id = Number(btn.dataset.id);
         await dbDelete("journals", id);
         allJournals = allJournals.filter(item => item.id !== id);
+        cloudRemove(`journals/${id}`);
         updateKillSwitch();
         renderJournals();
       });
@@ -3045,7 +3398,6 @@
     renderJournalAnalytics();
   }
 
-  // 기능 5: 계좌 잔고 우상향 곡선 & 드로우다운(MDD)
   function renderEquityAndMddChart() {
     const points = [];
     const allDates = new Set();
@@ -3094,7 +3446,7 @@
     cumPnlEl.className = cumPurePnl >= 0 ? "pos" : "neg";
 
     document.getElementById("anPeakBal").textContent = runningPeak > 0 ? fmtIntUsd(runningPeak, false) : "-";
-    document.getElementById("anMdd").textContent = `-${fmtIntUsd(maxDdUsd, false).replace("$", "$")} (-${maxDdPct.toFixed(2)}%)`;
+    document.getElementById("anMdd").textContent = `-${fmtIntUsd(maxDdUsd, false)} (-${maxDdPct.toFixed(2)}%)`;
     document.getElementById("anTotalDays").textContent = `${points.length}일`;
 
     const area = document.getElementById("equitySvgArea");
@@ -3168,7 +3520,7 @@
 
     const tooltip = document.getElementById("svgTooltip");
     area.querySelectorAll(".svg-hover-col").forEach(col => {
-      col.addEventListener("mouseenter", e => {
+      col.addEventListener("mouseenter", () => {
         const p = points[Number(col.dataset.idx)];
         tooltip.innerHTML = `
           <strong>📅 ${p.date}</strong><br>
@@ -3233,7 +3585,6 @@
       return true;
     });
 
-    // 1. 원칙 준수 vs 위반 비교
     const okTrades = trades.filter(t => (t.rule || "").startsWith("준수"));
     const badTrades = trades.filter(t => !(t.rule || "").startsWith("준수"));
     const mOk = calcGroupMetrics(okTrades);
@@ -3266,7 +3617,6 @@
       </div>
     `;
 
-    // 2. 셋업 태그별 승률 & 기댓값 테이블
     const setupMap = {};
     trades.forEach(t => {
       const key = t.setup && t.setup.trim() ? t.setup.trim() : "(태그 미지정)";
@@ -3302,7 +3652,6 @@
       }).join("");
     }
 
-    // 3. 서머타임(DST) 날짜별 자동 반영 시간대(세션)별 성과 & 24시간 히트맵
     const isTodayUsDst = isUsDstDate(todayStr);
     const isTodayEuDst = isEuDstDate(todayStr);
     const dstBadge = document.getElementById("currentDstBadge");
@@ -3358,11 +3707,10 @@
       hourBuckets[hh].count += 1;
       hourBuckets[hh].netPnl += (Number(t.pnl) || 0);
 
-      // 해당 거래일(t.date)의 서머타임 여부에 따른 정확한 분 단위 경계값 계산
-      const asiaStartMin = tradeUsDst ? 7 * 60 : 8 * 60;           // 07:00 or 08:00
-      const euStartMin   = tradeEuDst ? 16 * 60 : 17 * 60;         // 16:00 or 17:00
-      const usStartMin   = tradeUsDst ? 22 * 60 + 30 : 23 * 60 + 30; // 22:30 or 23:30
-      const usEndMin     = tradeUsDst ? 5 * 60 : 6 * 60;           // 05:00 or 06:00
+      const asiaStartMin = tradeUsDst ? 7 * 60 : 8 * 60;
+      const euStartMin   = tradeEuDst ? 16 * 60 : 17 * 60;
+      const usStartMin   = tradeUsDst ? 22 * 60 + 30 : 23 * 60 + 30;
+      const usEndMin     = tradeUsDst ? 5 * 60 : 6 * 60;
 
       const totalMin = hh * 60 + mm;
       if (totalMin >= asiaStartMin && totalMin < euStartMin) {
@@ -3479,9 +3827,25 @@
         }
         if (Array.isArray(parsed.journals)) {
           allJournals = parsed.journals;
+          await dbClear("journals");
           for (const j of allJournals) await dbPut("journals", j);
         }
-        if (parsed.calcSeed) syncSeed(parsed.calcSeed, null);
+        if (parsed.calcSeed) syncSeed(parsed.calcSeed, null, true);
+
+        if (syncUserRef) {
+          const journalsMap = {};
+          allJournals.forEach(j => { journalsMap[j.id] = j; });
+          await syncUserRef.set({
+            calcSeed: globalSeed,
+            preTradeRules,
+            killSwitchConfig,
+            setupTags,
+            ledgerStore,
+            journals: journalsMap,
+            updatedAt: Date.now()
+          });
+        }
+
         renderGatekeeper();
         renderSetupTagOptions();
         renderLedger();
@@ -3501,7 +3865,7 @@
     const mData = ledgerStore[ym] || { targetPct: 20, days: {} };
     let lines = [`[트레이딩 월간 복기 데이터: ${ym}]`, `- 목표 수익률: ${mData.targetPct}%`, `\n1. 일별 매매기록:`];
 
-    Object.keys(mData.days).sort().forEach(d => {
+    Object.keys(mData.days || {}).sort().forEach(d => {
       const r = mData.days[d];
       if (r.start || r.end || r.memo) {
         lines.push(`- ${d} | 시작:${r.start || "-"} | 마감:${r.end || "-"} | 입출금:${r.io || 0} | 무사고:${r.safe} | 메모:${r.memo || ""}`);
@@ -3524,7 +3888,7 @@
   });
 
   /* ============================================================================
-     7. 앱 부팅 (IndexedDB 데이터 로드)
+     7. 앱 부팅 (IndexedDB 로드 후 저장된 클라우드 동기화 자동 연결)
   ============================================================================ */
   (async function boot() {
     await initDB();
@@ -3552,6 +3916,12 @@
     updateKillSwitch();
     renderJournals();
     renderAnalytics();
+
+    const savedFbUrl = localStorage.getItem("fb_sync_url");
+    const savedFbSecret = localStorage.getItem("fb_sync_secret");
+    if (savedFbUrl && savedFbSecret) {
+      startFirebaseSync(savedFbUrl, savedFbSecret, "PULL");
+    }
   })();
 </script>
 </body>
