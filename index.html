@@ -117,16 +117,28 @@
   .tab-view { display: none; flex: 1; }
   .tab-view.active { display: flex; flex-direction: column; }
 
-  /* ================= 기능 1: 진입 전 강제 체크리스트 (Pre-Trade Gatekeeper) ================= */
-  .gatekeeper-card {
+  /* ================= 기능 1 + '어제의 나' 경고 패널 (2단 상단 그리드) ================= */
+  .pretrade-top-grid {
     width: 100%;
     max-width: 840px;
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 12px;
+    margin-bottom: 14px;
+    align-items: stretch;
+  }
+  @media (max-width: 780px) {
+    .pretrade-top-grid { grid-template-columns: 1fr; }
+  }
+  .gatekeeper-card {
     background: #1b1f24;
     border: 1px solid #2c323b;
     border-radius: 12px;
-    padding: 12px 16px;
-    margin-bottom: 14px;
+    padding: 12px 14px;
     transition: border-color 0.2s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
   }
   .gatekeeper-card.ready {
     border-color: #2ea043;
@@ -136,14 +148,15 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     margin-bottom: 10px;
     flex-wrap: wrap;
   }
   .gk-title-wrap {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    flex-wrap: wrap;
   }
   .gk-title {
     font-size: 13px;
@@ -153,7 +166,7 @@
   .gk-status {
     font-size: 11px;
     font-weight: 800;
-    padding: 3px 9px;
+    padding: 2px 8px;
     border-radius: 999px;
     background: #2b2118;
     border: 1px solid #d97706;
@@ -166,22 +179,22 @@
   }
   .gk-actions {
     display: flex;
-    gap: 6px;
+    gap: 5px;
     align-items: center;
   }
   .gk-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 7px;
   }
   .gk-item {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
+    gap: 6px;
     background: #14171c;
     border: 1px solid #30363d;
     border-radius: 8px;
-    padding: 7px 11px;
+    padding: 6px 10px;
     font-size: 12px;
     font-weight: 600;
     color: #adb5bd;
@@ -232,6 +245,70 @@
   .gatekeeper-card.editing .gk-add-bar { display: flex; }
   .gk-add-bar input { font-size: 12px; padding: 5px 8px; }
 
+  /* 어제의 나 경고 카드 */
+  .yesterday-card {
+    background: linear-gradient(145deg, #1e1b24 0%, #171a21 100%);
+    border: 1px solid #4c1d95;
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .yesterday-card.has-alert {
+    border-color: #f59e0b;
+    box-shadow: 0 0 14px rgba(245, 158, 11, 0.14);
+  }
+  .yc-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+  }
+  .yc-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: #fde68a;
+  }
+  .yc-date-tag {
+    font-size: 10px;
+    font-weight: 700;
+    color: #a78bfa;
+    background: rgba(139, 92, 246, 0.15);
+    border: 1px solid rgba(139, 92, 246, 0.35);
+    padding: 2px 7px;
+    border-radius: 999px;
+  }
+  .yc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    max-height: 118px;
+    overflow-y: auto;
+  }
+  .yc-item {
+    font-size: 12px;
+    line-height: 1.4;
+    padding: 6px 9px;
+    border-radius: 7px;
+    background: #111318;
+  }
+  .yc-item.mistake {
+    border-left: 3px solid #f87171;
+    color: #fecaca;
+  }
+  .yc-item.rule {
+    border-left: 3px solid #60a5fa;
+    color: #dbeafe;
+  }
+  .yc-empty {
+    font-size: 11.5px;
+    color: #8b949e;
+    line-height: 1.45;
+    padding: 6px 0;
+  }
+
   .quad-gk-wrap {
     position: relative;
     display: flex;
@@ -273,7 +350,7 @@
     height: calc(100vh - 46px);
     overflow: hidden;
   }
-  #view-calc.quad-mode #gatekeeperSingleWrap { display: none; }
+  #view-calc.quad-mode #pretradeTopGrid { display: none; }
   .quad-top-bar {
     display: none;
     justify-content: space-between;
@@ -519,7 +596,7 @@
   .sum-row.loss-row { padding-top: 8px; border-top: 1px dashed #2c323b; }
   .sum-row.loss-row strong { color: #f87171; font-size: 15px; }
 
-  /* ================= 탭 2: 월별 매매기록 장부 ================= */
+  /* ================= 탭 2: 월별 매매기록 장부 + 3번 탭 상호 연동 배지 ================= */
   .ledger-full-wrap {
     width: 100%;
     padding: 16px 16px 40px;
@@ -605,7 +682,7 @@
   .ledger-table td.date-col {
     font-weight: 600;
     color: #adb5bd;
-    width: 185px;
+    width: 265px;
     white-space: nowrap;
     text-align: left;
     padding-left: 12px;
@@ -616,6 +693,34 @@
     justify-content: space-between;
     gap: 6px;
   }
+  .date-badges-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .j-link-badge {
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid #2ea043;
+    background: #132d21;
+    color: #4ade80;
+    transition: 0.15s;
+  }
+  .j-link-badge:hover { background: #1b4732; color: #fff; }
+  .j-link-badge.has-draft {
+    border-color: #f59e0b;
+    background: #422006;
+    color: #fcd34d;
+  }
+  .j-link-badge.missing-warn {
+    border-color: #ef4444;
+    background: #3b181a;
+    color: #fca5a5;
+  }
+
   .io-badge-btn {
     background: #14171c;
     border: 1px dashed #363d47;
@@ -654,7 +759,7 @@
 
   .ledger-table td.memo-col {
     width: auto;
-    min-width: 340px;
+    min-width: 300px;
     text-align: left;
   }
   .ledger-table td.memo-col input {
@@ -684,7 +789,7 @@
   .pos { color: #4ade80 !important; }
   .neg { color: #f87171 !important; }
 
-  /* ================= 탭 3: 건별 매매일지 + 기능 2 (서킷브레이커) ================= */
+  /* ================= 탭 3: 건별 매매일지 + 퀵로그 + 5분 복기 위자드 ================= */
   .page-wrap {
     max-width: 1260px;
     width: 100%;
@@ -843,13 +948,94 @@
   .j-form-title {
     font-size: 15px;
     font-weight: 800;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     color: #f8f9fa;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  /* 퀵 모드 / 상세 모드 스위치 */
+  .mode-pill-switch {
+    display: inline-flex;
+    background: #0d1014;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 2px;
+    gap: 2px;
+  }
+  .mode-pill-btn {
+    background: transparent;
+    border: none;
+    color: #8b949e;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 4px 9px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .mode-pill-btn.active {
+    background: #1d3557;
+    color: #93c5fd;
+  }
+  .j-form-card.quick-mode .detail-only-field {
+    display: none !important;
+  }
+
+  /* 5분 연속 복기 위자드 배너 */
+  .wizard-banner {
+    display: none;
+    background: linear-gradient(90deg, #2b2118 0%, #3b2612 100%);
+    border: 1px solid #f59e0b;
+    color: #fde68a;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    justify-content: space-between;
+    align-items: center;
     gap: 8px;
   }
+  .wizard-banner.open { display: flex; }
+
+  .wizard-start-btn {
+    background: #422006;
+    border: 1px solid #f59e0b;
+    color: #fcd34d;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 4px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .wizard-start-btn:hover { background: #713f12; color: #fff; }
+
+  .date-filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #1d3557;
+    border: 1px solid #3b82f6;
+    color: #93c5fd;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 9px;
+    border-radius: 999px;
+  }
+  .date-filter-chip button {
+    background: none;
+    border: none;
+    color: #fca5a5;
+    font-weight: 900;
+    cursor: pointer;
+    font-size: 11px;
+  }
+
   .draft-hint-banner {
     background: rgba(59, 130, 246, 0.12);
     border: 1px solid rgba(59, 130, 246, 0.35);
@@ -1233,7 +1419,7 @@
   }
   .more-imgs-btn:hover { background: #1d3557; color: #fff; }
 
-  /* ================= 탭 4: 성과·통계 분석 (기능 3, 4, 5) ================= */
+  /* ================= 탭 4: 성과·통계 분석 ================= */
   .analytics-section {
     background: #1b1f24;
     border: 1px solid #2c323b;
@@ -1634,7 +1820,11 @@
     <button type="button" class="mode-btn" id="exitQuadBtn">단일 모드로 돌아가기</button>
   </div>
 
-  <div class="gatekeeper-card" id="gatekeeperSingleWrap"></div>
+  <!-- 진입 전 강제 체크리스트 + '어제의 나' 경고 카드 -->
+  <div class="pretrade-top-grid" id="pretradeTopGrid">
+    <div class="gatekeeper-card" id="gatekeeperSingleWrap"></div>
+    <div class="yesterday-card" id="yesterdayReminderCard"></div>
+  </div>
 
   <div class="quad-grid" id="quadGrid"></div>
 </section>
@@ -1660,7 +1850,7 @@
       <table class="ledger-table">
         <thead>
           <tr>
-            <th>날짜 / 입출금</th>
+            <th>날짜 / 일지연동 / 입출금</th>
             <th>시작금액 ($)</th>
             <th>마감금액 ($)</th>
             <th>수익금액 ($)</th>
@@ -1691,7 +1881,7 @@
   </div>
 </section>
 
-<!-- ================= 탭 3: 건별 매매일지 + 기능 2 (서킷브레이커) ================= -->
+<!-- ================= 탭 3: 건별 매매일지 + 퀵로그 + 5분 복기 위자드 ================= -->
 <section id="view-journal" class="tab-view">
   <div class="page-wrap">
     <div class="circuit-banner" id="circuitBanner">
@@ -1736,16 +1926,29 @@
     </div>
 
     <div class="journal-grid">
-      <div class="j-form-card" id="journalFormCard">
+      <div class="j-form-card quick-mode" id="journalFormCard">
         <div class="j-form-title">
           <span id="jFormHeading">매매일지 기록</span>
-          <button type="button" class="reset-btn" id="cancelEditJournalBtn" style="display:none;">수정 취소</button>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <div class="mode-pill-switch">
+              <button type="button" class="mode-pill-btn active" id="quickModeBtn">⚡ 퀵 모드</button>
+              <button type="button" class="mode-pill-btn" id="detailModeBtn">📝 상세 모드</button>
+            </div>
+            <button type="button" class="reset-btn" id="cancelEditJournalBtn" style="display:none;">취소</button>
+          </div>
         </div>
 
-        <div class="draft-hint-banner">
-          ⚡ <b>빠른 임시저장:</b> 손익·셋업·차트만 넣고 <b>뼈대 임시저장</b>을 누르세요. 장 마감 후 카드의 <b>수정</b> 버튼으로 진입/청산/감정/복기를 채우면 됩니다.
+        <!-- 5분 연속 복기 위자드 상태 표시 -->
+        <div class="wizard-banner" id="wizardBanner">
+          <span id="wizardStatusText">🚀 연속 복기 진행 중</span>
+          <button type="button" class="reset-btn" id="stopWizardBtn">위자드 종료</button>
         </div>
 
+        <div class="draft-hint-banner" id="quickModeHint">
+          ⚡ <b>퀵 모드 (6칸 초고속 기록):</b> 장중엔 핵심만 넣고 <b>뼈대 임시저장</b>을 누르세요. 장 마감 후 <b>수정</b>을 누르면 상세 복기 칸이 자동으로 펼쳐집니다.
+        </div>
+
+        <!-- 1. 날짜 / 진입시간 / 종목 -->
         <div class="j-row-3">
           <div>
             <label>날짜</label>
@@ -1767,9 +1970,10 @@
           </div>
         </div>
 
+        <!-- 2. BUY·SELL / 손익($) -->
         <div class="j-row-2">
           <div>
-            <label>포지션</label>
+            <label>포지션 (BUY/SELL)</label>
             <select id="jSide">
               <option value="BUY">BUY (매수)</option>
               <option value="SELL">SELL (매도)</option>
@@ -1781,8 +1985,9 @@
           </div>
         </div>
 
-        <div class="j-row-2">
-          <div>
+        <!-- 3. 셋업 태그 (+ 상세 모드에서만 원칙 준수 여부) -->
+        <div class="j-field" id="setupAndRuleWrap">
+          <div id="setupCol">
             <label>셋업 태그</label>
             <div class="setup-select-row">
               <select id="jSetupSelect"></select>
@@ -1794,7 +1999,7 @@
             </div>
             <div class="tag-manage-panel" id="tagManagePanel"></div>
           </div>
-          <div>
+          <div class="detail-only-field" style="margin-top:10px;">
             <label>원칙 준수 여부</label>
             <select id="jRule">
               <option value="준수 (O)">준수 (O)</option>
@@ -1805,23 +2010,24 @@
           </div>
         </div>
 
-        <div class="j-field">
+        <!-- 상세 모드 전용 복기 입력 칸 -->
+        <div class="j-field detail-only-field">
           <label>진입 이유 (근거)</label>
           <textarea id="jEntryReason" placeholder="타임프레임, 키레벨, 캔들 패턴 등"></textarea>
         </div>
 
-        <div class="j-field">
+        <div class="j-field detail-only-field">
           <label>청산 이유 & 감정 상태</label>
           <textarea id="jExitReason" placeholder="목표가 도달 / 조기 청산 이유 및 당시 심리"></textarea>
         </div>
 
-        <div class="j-field">
+        <div class="j-field detail-only-field">
           <label>주의점 / 다음 매매 개선점</label>
           <input type="text" id="jLesson" placeholder="핵심 교훈 한 줄">
         </div>
 
-        <div class="review-builder">
-          <label style="margin-bottom:5px;">복기 피드백 추가 (중복 선택 가능)</label>
+        <div class="review-builder detail-only-field">
+          <label style="margin-bottom:5px;">복기 피드백 추가 (중복 선택 가능 · 다음 날 '어제의 나'에 자동 연동)</label>
           <div class="review-builder-head">
             <select id="reviewTypeSelect">
               <option value="">+ 항목 선택 (잘한 점 / 반복실수 / 지킬 원칙)</option>
@@ -1833,6 +2039,7 @@
           <div class="review-blocks" id="reviewBlocks"></div>
         </div>
 
+        <!-- 6. 차트 붙여넣기 (퀵·상세 공통) -->
         <div class="j-field">
           <label>차트 이미지 첨부 (여러 장 가능 · 자동 압축)</label>
           <div class="img-drop-zone" id="imgDropZone">클릭하여 여러 장 선택 또는 캡처 후 Ctrl+V 연속 붙여넣기</div>
@@ -1851,6 +2058,11 @@
           <div class="j-list-title-wrap">
             <strong style="font-size:15px;">기록된 매매일지 (<span id="jCount">0</span>건)</strong>
             <span class="draft-counter-pill" id="draftCounterPill" style="display:none;">임시저장 0건</span>
+            <button type="button" class="wizard-start-btn" id="startWizardBtn" style="display:none;">🚀 5분 연속 복기 시작</button>
+            <span class="date-filter-chip" id="exactDateChip" style="display:none;">
+              <span id="exactDateChipText">📅 날짜 필터</span>
+              <button type="button" id="clearExactDateBtn" title="날짜 필터 해제">✕</button>
+            </span>
           </div>
           <div class="j-filters">
             <select id="jFilterPeriod">
@@ -1890,10 +2102,9 @@
   </div>
 </section>
 
-<!-- ================= 탭 4: 성과·통계 분석 (기능 3, 4, 5) ================= -->
+<!-- ================= 탭 4: 성과·통계 분석 ================= -->
 <section id="view-analytics" class="tab-view">
   <div class="page-wrap">
-    <!-- 기능 5: 계좌 잔고 우상향 곡선 & 드로우다운(MDD) 차트 -->
     <div class="analytics-section">
       <div class="an-sec-head">
         <div>
@@ -1920,7 +2131,6 @@
       </div>
     </div>
 
-    <!-- 기능 3: 원칙 준수 vs 위반 비교 & 셋업 태그별 승률·기댓값 통계 -->
     <div class="analytics-section">
       <div class="an-sec-head">
         <div>
@@ -1956,7 +2166,6 @@
       </div>
     </div>
 
-    <!-- 기능 4: 서머타임 자동 반영 시간대(세션)별 성과 & 24시간 히트맵 -->
     <div class="analytics-section">
       <div class="an-sec-head">
         <div>
@@ -2434,6 +2643,8 @@
 
       updateKillSwitch();
       renderJournals();
+      renderLedgerBadges();
+      renderYesterdayReminder();
 
       if (document.getElementById("view-analytics").classList.contains("active")) {
         renderAnalytics();
@@ -2613,31 +2824,39 @@
   /* ============================================================================
      1. 상단 탭 전환 로직
   ============================================================================ */
-  document.querySelectorAll(".nav-tab").forEach(tab => {
-    tab.addEventListener("click", () => {
-      document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
-      document.querySelectorAll(".tab-view").forEach(v => v.classList.remove("active"));
-      tab.classList.add("active");
-      document.getElementById(`view-${tab.dataset.tab}`).classList.add("active");
-
-      if (tab.dataset.tab === "journal") {
-        if (editingJournalId === null) {
-          if (document.getElementById("jDate").dataset.auto !== "manual") {
-            document.getElementById("jDate").value = getLocalTodayStr();
-          }
-          if (document.getElementById("jTime").dataset.auto !== "manual") {
-            document.getElementById("jTime").value = getLocalTimeStr();
-          }
-        }
-        updateKillSwitch();
-      } else if (tab.dataset.tab === "analytics") {
-        renderAnalytics();
-      }
+  function switchToTab(tabName) {
+    document.querySelectorAll(".nav-tab").forEach(t => {
+      t.classList.toggle("active", t.dataset.tab === tabName);
     });
+    document.querySelectorAll(".tab-view").forEach(v => {
+      v.classList.toggle("active", v.id === `view-${tabName}`);
+    });
+
+    if (tabName === "calc") {
+      renderYesterdayReminder();
+    } else if (tabName === "ledger") {
+      renderLedgerBadges();
+    } else if (tabName === "journal") {
+      if (editingJournalId === null) {
+        if (document.getElementById("jDate").dataset.auto !== "manual") {
+          document.getElementById("jDate").value = getLocalTodayStr();
+        }
+        if (document.getElementById("jTime").dataset.auto !== "manual") {
+          document.getElementById("jTime").value = getLocalTimeStr();
+        }
+      }
+      updateKillSwitch();
+    } else if (tabName === "analytics") {
+      renderAnalytics();
+    }
+  }
+
+  document.querySelectorAll(".nav-tab").forEach(tab => {
+    tab.addEventListener("click", () => switchToTab(tab.dataset.tab));
   });
 
   /* ============================================================================
-     1-B. 기능 1: 진입 전 강제 체크리스트 (Pre-Trade Gatekeeper)
+     1-B. 진입 전 강제 체크리스트 + '어제의 나' 경고 팝업(카드)
   ============================================================================ */
   const DEFAULT_PRE_TRADE_RULES = [
     { id: 1, text: "① 상위 프레임 추세·키레벨 일치", checked: false },
@@ -2656,7 +2875,7 @@
     const isAllReady = preTradeRules.length > 0 && uncheckedCount === 0;
     const statusText = preTradeRules.length === 0
       ? "체크 항목 없음"
-      : (isAllReady ? "✅ 진입 승인 (READY)" : `⚠️ 진입 대기 (${uncheckedCount}개 미확인)`);
+      : (isAllReady ? "✅ 진입 승인" : `⚠️ 미확인 ${uncheckedCount}개`);
 
     return `
       <div class="gk-header">
@@ -2665,8 +2884,8 @@
           <span class="gk-status ${isAllReady ? "ready" : ""}">${statusText}</span>
         </div>
         <div class="gk-actions">
-          <button type="button" class="reset-btn gk-reset-btn">체크 초기화</button>
-          <button type="button" class="reset-btn gk-edit-btn">${isEditingGk ? "편집 완료" : "+ 조건 / 편집"}</button>
+          <button type="button" class="reset-btn gk-reset-btn">초기화</button>
+          <button type="button" class="reset-btn gk-edit-btn">${isEditingGk ? "완료" : "+ 편집"}</button>
         </div>
       </div>
       <div class="gk-list">
@@ -2750,6 +2969,57 @@
         if (e.key === "Enter") { e.preventDefault(); doAdd(); }
       });
     });
+  }
+
+  function renderYesterdayReminder() {
+    const card = document.getElementById("yesterdayReminderCard");
+    if (!card) return;
+
+    const todayStr = getLocalTodayStr();
+    const pastJournals = allJournals
+      .filter(j => j.date && j.date < todayStr && Array.isArray(j.reviews) && j.reviews.some(r => r.type === "mistake" || r.type === "rule"))
+      .sort((a, b) => (b.date + (b.time || "")).localeCompare(a.date + (a.time || "")));
+
+    if (pastJournals.length === 0) {
+      card.classList.remove("has-alert");
+      card.innerHTML = `
+        <div class="yc-head">
+          <span class="yc-title">🪞 어제의 나 · 진입 경고</span>
+          <span class="yc-date-tag">기록 대기</span>
+        </div>
+        <div class="yc-empty">
+          매매일지 복기에서 <b>🔴 반복되는 실수</b> 또는 <b>🔵 지킬 원칙</b>을 적어두면 다음 날 진입 전 이곳에 자동으로 경고 방패가 뜹니다.
+        </div>
+      `;
+      return;
+    }
+
+    const latestDate = pastJournals[0].date;
+    const sameDayItems = [];
+    pastJournals
+      .filter(j => j.date === latestDate)
+      .forEach(j => {
+        (j.reviews || []).forEach(r => {
+          if (r.type === "mistake" || r.type === "rule") {
+            sameDayItems.push({ type: r.type, text: r.text, sym: j.sym });
+          }
+        });
+      });
+
+    card.classList.add("has-alert");
+    card.innerHTML = `
+      <div class="yc-head">
+        <span class="yc-title">🪞 어제의 나 · 진입 경고</span>
+        <span class="yc-date-tag">${latestDate} 복기</span>
+      </div>
+      <div class="yc-list">
+        ${sameDayItems.map(item => `
+          <div class="yc-item ${item.type}">
+            <b>${item.type === "mistake" ? "🔴" : "🔵"}</b> ${escapeHtml(item.text)}
+          </div>
+        `).join("")}
+      </div>
+    `;
   }
 
   document.getElementById("toggleQuadGkBtn").addEventListener("click", () => {
@@ -3039,13 +3309,14 @@
   applyLayoutMode();
 
   /* ============================================================================
-     3. 탭 2: 월별 매매기록 장부
+     3. 탭 2: 월별 매매기록 장부 + 3번 탭 상호 연동 & 누락 알림 배지
   ============================================================================ */
   const monthInput = document.getElementById("monthInput");
   const ledgerBody = document.getElementById("ledgerBody");
   const monthTargetPctInput = document.getElementById("monthTargetPct");
   let ledgerStore = {};
   let ledgerDebounceTimers = {};
+  let exactDateFilter = "";
 
   monthInput.value = getLocalTodayStr().slice(0, 7);
 
@@ -3058,6 +3329,54 @@
   function getDaysInMonth(ym) {
     const [y, m] = ym.split("-").map(Number);
     return new Date(y, m, 0).getDate();
+  }
+
+  function getJournalBadgeHtml(dateStr, hasEndValue) {
+    const dayJournals = allJournals.filter(j => j.date === dateStr);
+    const total = dayJournals.length;
+    const drafts = dayJournals.filter(j => Boolean(j.isDraft)).length;
+
+    if (total > 0) {
+      const label = drafts > 0 ? `일지 ${total}건 · 미완 ${drafts}` : `일지 ${total}건`;
+      const cls = drafts > 0 ? "j-link-badge has-draft" : "j-link-badge";
+      return `<button type="button" class="${cls}" data-jump-date="${dateStr}" title="클릭하여 ${dateStr} 매매일지로 바로 이동">${label}</button>`;
+    }
+    if (hasEndValue) {
+      return `<button type="button" class="j-link-badge missing-warn" data-jump-date="${dateStr}" title="마감금액이 입력되었으나 오늘 매매일지가 0건입니다. 클릭하여 작성">+ 일지 비어있음</button>`;
+    }
+    return "";
+  }
+
+  function renderLedgerBadges() {
+    ledgerBody.querySelectorAll("tr").forEach(tr => {
+      const dateStr = tr.dataset.date;
+      const slot = tr.querySelector(".j-badge-slot");
+      if (!slot) return;
+      const endVal = tr.querySelector(".l-end")?.value || "";
+      const hasEnd = endVal !== "" && !isNaN(parseFloat(endVal)) && parseFloat(endVal) > 0;
+      slot.innerHTML = getJournalBadgeHtml(dateStr, hasEnd);
+      const jumpBtn = slot.querySelector("[data-jump-date]");
+      if (jumpBtn) {
+        jumpBtn.addEventListener("click", () => openJournalForDate(dateStr));
+      }
+    });
+  }
+
+  function openJournalForDate(dateStr) {
+    exactDateFilter = dateStr;
+    document.getElementById("jFilterPeriod").value = "ALL";
+    document.getElementById("jFilterSym").value = "ALL";
+    document.getElementById("jFilterSetup").value = "ALL";
+    document.getElementById("jFilterReview").value = "ALL";
+    document.getElementById("jFilterRule").value = "ALL";
+
+    if (editingJournalId === null) {
+      jDateInput.value = dateStr;
+      jDateInput.dataset.auto = "manual";
+    }
+
+    switchToTab("journal");
+    renderJournals();
   }
 
   function updateLedgerDomSafely() {
@@ -3134,7 +3453,10 @@
         <td class="date-col">
           <div class="date-cell-inner">
             <span>${dateStr}</span>
-            <button type="button" class="${ioBtnCls}" title="당일 입출금이 있는 경우에만 클릭하여 입력">${ioBtnText}</button>
+            <div class="date-badges-group">
+              <span class="j-badge-slot"></span>
+              <button type="button" class="${ioBtnCls}" title="당일 입출금이 있는 경우에만 클릭하여 입력">${ioBtnText}</button>
+            </div>
           </div>
         </td>
         <td class="num-col"><input type="number" class="l-start" value="${cleanStart}" placeholder="시작" step="1"></td>
@@ -3214,6 +3536,8 @@
       if (safeState === "OK") { streak++; safeOkCount++; }
       else if (safeState === "FAIL") { streak = 0; safeFailCount++; }
     });
+
+    renderLedgerBadges();
 
     const monthPct = (firstStart && firstStart > 0) ? (sumPnl / firstStart) * 100 : 0;
 
@@ -3313,13 +3637,15 @@
   });
 
   /* ============================================================================
-     4. 탭 3: 건별 매매일지 + 임시저장/수정 + 서킷브레이커
+     4. 탭 3: 건별 매매일지 + 퀵/상세 토글 + 5분 연속 복기 위자드
   ============================================================================ */
   let currentImages = [];
   let allJournals = [];
   let setupTags = [];
   let killSwitchConfig = { maxLoss: 60, maxTrades: 3 };
   let editingJournalId = null;
+  let isQuickMode = true;
+  let isReviewWizardActive = false;
 
   const ksMaxLossInput = document.getElementById("ksMaxLossInput");
   const ksMaxTradesInput = document.getElementById("ksMaxTradesInput");
@@ -3402,6 +3728,20 @@
   const saveJournalBtn = document.getElementById("saveJournalBtn");
   const saveDraftJournalBtn = document.getElementById("saveDraftJournalBtn");
   const journalBtnRow = document.getElementById("journalBtnRow");
+  const quickModeBtn = document.getElementById("quickModeBtn");
+  const detailModeBtn = document.getElementById("detailModeBtn");
+  const wizardBanner = document.getElementById("wizardBanner");
+
+  function setFormQuickMode(quick) {
+    isQuickMode = quick;
+    journalFormCard.classList.toggle("quick-mode", quick);
+    quickModeBtn.classList.toggle("active", quick);
+    detailModeBtn.classList.toggle("active", !quick);
+    document.getElementById("quickModeHint").style.display = quick ? "block" : "none";
+  }
+
+  quickModeBtn.addEventListener("click", () => setFormQuickMode(true));
+  detailModeBtn.addEventListener("click", () => setFormQuickMode(false));
 
   jDateInput.value = getLocalTodayStr();
   jTimeInput.value = getLocalTimeStr();
@@ -3621,11 +3961,14 @@
   function updateFormModeUI() {
     if (editingJournalId !== null) {
       journalFormCard.classList.add("editing-mode");
-      jFormHeading.textContent = "✏️ 매매일지 수정 / 복기 작성";
+      jFormHeading.textContent = "✏️ 매매일지 수정 / 복기";
       cancelEditJournalBtn.style.display = "inline-block";
       journalBtnRow.classList.add("single-btn");
       saveDraftJournalBtn.style.display = "none";
-      saveJournalBtn.textContent = "✅ 수정 완료 (정식 저장)";
+      const remainingDrafts = allJournals.filter(j => j.isDraft && j.id !== editingJournalId).length;
+      saveJournalBtn.textContent = (isReviewWizardActive && remainingDrafts > 0)
+        ? `✅ 수정 완료 & 다음 복기 (${remainingDrafts}건 남음)`
+        : "✅ 수정 완료 (정식 저장)";
       saveJournalBtn.classList.add("update-mode");
     } else {
       journalFormCard.classList.remove("editing-mode");
@@ -3636,12 +3979,21 @@
       saveJournalBtn.textContent = "+ 매매일지 저장하기";
       saveJournalBtn.classList.remove("update-mode");
     }
+
+    if (isReviewWizardActive) {
+      const draftsLeft = allJournals.filter(j => j.isDraft).length;
+      wizardBanner.classList.add("open");
+      document.getElementById("wizardStatusText").textContent = `🚀 5분 연속 복기 위자드 (남은 임시저장 ${draftsLeft}건)`;
+    } else {
+      wizardBanner.classList.remove("open");
+    }
   }
 
-  function resetJournalForm(clearEditId = true) {
+  function resetJournalForm(clearEditId = true, stopWizard = false) {
     if (clearEditId) editingJournalId = null;
-    jDateInput.value = getLocalTodayStr();
-    jDateInput.dataset.auto = "";
+    if (stopWizard) isReviewWizardActive = false;
+    jDateInput.value = exactDateFilter || getLocalTodayStr();
+    jDateInput.dataset.auto = exactDateFilter ? "manual" : "";
     jTimeInput.value = getLocalTimeStr();
     jTimeInput.dataset.auto = "";
     document.getElementById("jPnl").value = "";
@@ -3659,6 +4011,9 @@
   function startEditJournal(id) {
     const entry = allJournals.find(item => item.id === id);
     if (!entry) return;
+
+    // 수정 버튼을 누르면 자동으로 상세 모드로 펼쳐서 복기 작성을 바로 돕는다
+    setFormQuickMode(false);
 
     editingJournalId = entry.id;
     jDateInput.value = entry.date || getLocalTodayStr();
@@ -3695,8 +4050,29 @@
     journalFormCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
+  function getOrderedDrafts() {
+    return allJournals
+      .filter(j => Boolean(j.isDraft))
+      .sort((a, b) => (a.date + (a.time || "")).localeCompare(b.date + (b.time || "")) || a.id - b.id);
+  }
+
+  document.getElementById("startWizardBtn").addEventListener("click", () => {
+    const drafts = getOrderedDrafts();
+    if (drafts.length === 0) return;
+    isReviewWizardActive = true;
+    startEditJournal(drafts[0].id);
+  });
+
+  document.getElementById("stopWizardBtn").addEventListener("click", () => {
+    isReviewWizardActive = false;
+    resetJournalForm(true, true);
+    setFormQuickMode(true);
+  });
+
   cancelEditJournalBtn.addEventListener("click", () => {
-    resetJournalForm(true);
+    isReviewWizardActive = false;
+    resetJournalForm(true, true);
+    setFormQuickMode(true);
   });
 
   async function commitJournalEntry(asDraft) {
@@ -3712,9 +4088,6 @@
     const exitReason = document.getElementById("jExitReason").value.trim();
     const lesson = document.getElementById("jLesson").value.trim();
     const imgs = currentImages.slice();
-
-    // 수정 저장 시에는 상세 복기나 메모가 채워지면 임시저장 플래그 해제 (원할 경우 임시저장 유지 가능)
-    const isDraft = asDraft;
 
     if (editingJournalId !== null) {
       const existing = allJournals.find(item => item.id === editingJournalId);
@@ -3738,7 +4111,29 @@
       await dbPut("journals", updatedEntry);
       allJournals = allJournals.map(item => item.id === editingJournalId ? updatedEntry : item);
       cloudPushJournal(updatedEntry);
-      resetJournalForm(true);
+
+      updateKillSwitch();
+      renderJournals();
+      renderLedgerBadges();
+      renderYesterdayReminder();
+
+      // 5분 연속 복기 위자드가 켜져 있으면 다음 임시저장 일지로 즉시 이동
+      if (isReviewWizardActive) {
+        const nextDrafts = getOrderedDrafts();
+        if (nextDrafts.length > 0) {
+          startEditJournal(nextDrafts[0].id);
+          return;
+        } else {
+          isReviewWizardActive = false;
+          resetJournalForm(true, true);
+          setFormQuickMode(true);
+          alert("🎉 모든 임시저장 일지의 복기를 완료했습니다!");
+          return;
+        }
+      }
+
+      resetJournalForm(true, true);
+      setFormQuickMode(true);
     } else {
       const entry = {
         id: Date.now() + Math.floor(Math.random() * 100),
@@ -3754,17 +4149,19 @@
         lesson,
         reviews,
         images: imgs,
-        isDraft
+        isDraft: asDraft
       };
 
       await dbPut("journals", entry);
       allJournals.unshift(entry);
       cloudPushJournal(entry);
-      resetJournalForm(true);
-    }
+      resetJournalForm(true, false);
 
-    updateKillSwitch();
-    renderJournals();
+      updateKillSwitch();
+      renderJournals();
+      renderLedgerBadges();
+      renderYesterdayReminder();
+    }
   }
 
   saveDraftJournalBtn.addEventListener("click", () => commitJournalEntry(true));
@@ -3796,6 +4193,11 @@
     document.getElementById("galleryModal").classList.remove("open");
   });
 
+  document.getElementById("clearExactDateBtn").addEventListener("click", () => {
+    exactDateFilter = "";
+    renderJournals();
+  });
+
   function renderJournals() {
     const fPeriod = document.getElementById("jFilterPeriod").value;
     const fSym = document.getElementById("jFilterSym").value;
@@ -3811,23 +4213,38 @@
 
     const draftCountAll = allJournals.filter(j => Boolean(j.isDraft)).length;
     const draftPill = document.getElementById("draftCounterPill");
+    const startWizBtn = document.getElementById("startWizardBtn");
     if (draftCountAll > 0) {
       draftPill.style.display = "inline-block";
       draftPill.textContent = `⚡ 임시저장 ${draftCountAll}건`;
+      startWizBtn.style.display = "inline-block";
     } else {
       draftPill.style.display = "none";
+      startWizBtn.style.display = "none";
+    }
+
+    const exactChip = document.getElementById("exactDateChip");
+    if (exactDateFilter) {
+      exactChip.style.display = "inline-flex";
+      document.getElementById("exactDateChipText").textContent = `📅 ${exactDateFilter} 필터 중`;
+    } else {
+      exactChip.style.display = "none";
     }
 
     const filtered = allJournals
       .slice()
       .sort((a, b) => b.id - a.id)
       .filter(j => {
-        if (fPeriod === "TODAY" && j.date !== todayStr) return false;
-        if (fPeriod === "WEEK") {
-          const d = new Date((j.date || "") + "T00:00:00");
-          if (isNaN(d) || d < sevenDaysAgo) return false;
+        if (exactDateFilter && j.date !== exactDateFilter) return false;
+
+        if (!exactDateFilter) {
+          if (fPeriod === "TODAY" && j.date !== todayStr) return false;
+          if (fPeriod === "WEEK") {
+            const d = new Date((j.date || "") + "T00:00:00");
+            if (isNaN(d) || d < sevenDaysAgo) return false;
+          }
+          if (fPeriod === "MONTH" && !(j.date || "").startsWith(thisMonthPrefix)) return false;
         }
-        if (fPeriod === "MONTH" && !(j.date || "").startsWith(thisMonthPrefix)) return false;
 
         if (fSym !== "ALL" && j.sym !== fSym) return false;
         if (fSetup !== "ALL" && j.setup !== fSetup) return false;
@@ -3925,11 +4342,13 @@
         await dbDelete("journals", id);
         allJournals = allJournals.filter(item => item.id !== id);
         if (editingJournalId === id) {
-          resetJournalForm(true);
+          resetJournalForm(true, false);
         }
         cloudRemoveJournal(id);
         updateKillSwitch();
         renderJournals();
+        renderLedgerBadges();
+        renderYesterdayReminder();
       });
     });
 
@@ -4421,8 +4840,10 @@
           saveSyncQueue();
         }
 
-        resetJournalForm(true);
+        resetJournalForm(true, true);
+        setFormQuickMode(true);
         renderGatekeeper();
+        renderYesterdayReminder();
         renderSetupTagOptions();
         renderLedger();
         updateKillSwitch();
@@ -4488,6 +4909,7 @@
     allJournals = await dbGetAll("journals");
 
     renderGatekeeper();
+    renderYesterdayReminder();
     renderSetupTagOptions();
     renderLedger();
     updateKillSwitch();
